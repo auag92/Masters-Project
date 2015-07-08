@@ -1,4 +1,3 @@
-
 /*Phasefield module*/
 double phi_new[MESHX2], phi_old[MESHX2];
 double mu_new[MESHX2], mu_old[MESHX2];

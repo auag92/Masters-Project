@@ -77,3 +77,10 @@ double compute_error(double *A, double *B, double *C, double *E, double *F, doub
   }
   return(error);
 }
+
+
+hello world my name
+
+is apaar
+
+hi
