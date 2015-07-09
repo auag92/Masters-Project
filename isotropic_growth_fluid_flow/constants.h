@@ -16,7 +16,7 @@
 #define Mob (1.0)             /*Mobility*/
 #define E (4.0)            /*epsilon - dimensions of length [m]*/
 #define tau (1.0)
-#define deltaMu (0.3) // 
+#define deltaMu (0.3) //
 #define Mu (1.0)     //  chemical potential
 //-----------------------------------------
 
@@ -32,3 +32,8 @@
 #define Vw (0.0) // west wall velocity
 #define Vn (0.0) // north wall velocity
 #define Vs (0.0) // south wall velocity
+/----------------------------------------------
+#define p_up      (0)
+#define p_down    (0)
+#define p_left    (5)
+#define p_right   (0)
