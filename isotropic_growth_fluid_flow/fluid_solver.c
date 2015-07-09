@@ -4,11 +4,11 @@
 #include "constants.h"
 #include "variables.h"
 //#include "mg_solver.c"
-#define ntimesteps 1
-#define phi_tol 0.5
+#define phi_tol 0.9
 
 //#define LDC
 #define PipeFlow
+#define dirichlet_pressure
 
 void update(double *old, double *now,int M);
 void laplacian(double *f, double *lap, int M);
@@ -21,7 +21,7 @@ void V_str(int m);
 void LHS_fn();
 void Gauss_siedel(double *P, double *fn, double *a_x, double *a_y);
 void boundary_pressure();
-
+double compute_error(double *a_x, double *a_y, double *P, double *fn);
 fluid_solver(){
 
   int i,j,z,x;
@@ -37,19 +37,19 @@ fluid_solver(){
   Gauss_siedel(P, rhs_fn, a_x, a_y);
   for(i=1; i<MESHX-1; i++){
     for(j=1; j<MESHX-1; j++){
-	     z = i*MESHX +j;
-	     x = (i-1)*(pmesh)+ (j-1);
+	    z = i*MESHX +j;
+	    x = (i-1)*(pmesh)+ (j-1);
 
-	     phi = phi_old[z];
+	    phi = phi_old[z];
 
-	     dp_dx = 0.5*inv_deltax*(P[x+1]+P[x+pmesh+1]-P[x+pmesh]-P[x]);
-	     dp_dy = 0.5*inv_deltax*(P[x+pmesh]+P[x+pmesh+1]-P[x+1]-P[x]);
+	    dp_dx = 0.5*inv_deltax*(P[x+1]+P[x+pmesh+1]-P[x+pmesh]-P[x]);
+	    dp_dy = 0.5*inv_deltax*(P[x+pmesh]+P[x+pmesh+1]-P[x+1]-P[x]);
 
-	     du_dt = Hx[z] - dp_dx*(1.0-phi);// - Mu*2.757*phi*phi*u_str[z]*inv_deltax2;
-	     dv_dt = Hy[z] - dp_dy*(1.0-phi);// - Mu*2.757*phi*phi*v_str[z]*inv_deltax2;
+	    du_dt = Hx[z] - dp_dx*(1.0-phi);// - Mu*2.757*phi*phi*u_str[z]*inv_deltax2;
+	    dv_dt = Hy[z] - dp_dy*(1.0-phi);// - Mu*2.757*phi*phi*v_str[z]*inv_deltax2;
 
-	     u_now[z] = u_str[z] + deltat * du_dt;
-	     v_now[z] = v_str[z] + deltat * dv_dt;
+	    u_now[z] = u_str[z] + deltat * du_dt;
+	    v_now[z] = v_str[z] + deltat * dv_dt;
     }
   }
   V_update(MESHX);
@@ -58,7 +58,7 @@ fluid_solver(){
 
 void LHS_fn(){
   int i,j,x,m,x1,x2,y,y1,y2,z,z1,z2,c,d1,d2,t;
-
+  int phi_indx,a_indx;
   t = pmesh-1;
   for (i=0;i<t;i++){
     for (j=0;j<t-1;j++){
@@ -76,8 +76,6 @@ void LHS_fn(){
     }
   }
 }
-
-
 void update(double *old, double *now,int M) {
   long i, j, z;
   for (i=0; i < M; i++) {
@@ -190,7 +188,7 @@ void V_str(int m){
   }
 }
 void Gauss_siedel(double *P, double *fn, double *a_x, double *a_y) {
-  long i, j, indx, indx_rght, indx_frnt, indx_lft, indx_bck;
+  long i, j, indx, indx_rght, indx_frnt, indx_lft, indx_bck, indx_ax, indx_ay;
   double P_old;
   double error;
   double tol=1.0e-6;
@@ -200,9 +198,9 @@ void Gauss_siedel(double *P, double *fn, double *a_x, double *a_y) {
       for(j=1;j < pmesh-1;j++) {
         indx         = i*pmesh      + j;
         indx_rght    = indx         + 1;
-        indx_frnt    = indx         + MESHY;
+        indx_frnt    = indx         + pmesh;
         indx_lft     = indx         - 1;
-        indx_bck     = indx         - MESHY;
+        indx_bck     = indx         - pmesh;
         indx_ax      = i*(pmesh-1)  +j;
         indx_ay      = i*(pmesh-2)   +j;
 
@@ -210,7 +208,7 @@ void Gauss_siedel(double *P, double *fn, double *a_x, double *a_y) {
           P_old     = P[indx];
 
           P[indx]  = a_x[indx_ax-1]*P[indx_lft] + a_x[indx_ax]*P[indx_rght]
-          + a_y[indx_ay-(pmesh-2)]*P[indx_bck] + a_y[indx_ay]*P[indx_frnt] + deltax2*fn[indx];
+          + a_y[indx_ay-(pmesh-2)]*P[indx_bck] + a_y[indx_ay]*P[indx_frnt] + deltax*deltax*fn[indx];
           P[indx] /= a_x[indx_ax-1]+a_x[indx_ax]+a_y[indx_ay-(pmesh-2)]+a_y[indx_ay];
         }
       }
@@ -219,9 +217,9 @@ void Gauss_siedel(double *P, double *fn, double *a_x, double *a_y) {
       for(j=1;j < pmesh-1;j++) {
         indx         = i*pmesh      + j;
         indx_rght    = indx         + 1;
-        indx_frnt    = indx         + MESHY;
+        indx_frnt    = indx         + pmesh;
         indx_lft     = indx         - 1;
-        indx_bck     = indx         - MESHY;
+        indx_bck     = indx         - pmesh;
         indx_ax      = i*(pmesh-1)  +j;
         indx_ay      = i*(pmesh-2)   +j;
 
@@ -229,33 +227,33 @@ void Gauss_siedel(double *P, double *fn, double *a_x, double *a_y) {
           P_old     = P[indx];
 
           P[indx]  = a_x[indx_ax-1]*P[indx_lft] + a_x[indx_ax]*P[indx_rght]
-          + a_y[indx_ay-(pmesh-2)]*P[indx_bck] + a_y[indx_ay]*P[indx_frnt] + deltax2*fn[indx];
+          + a_y[indx_ay-(pmesh-2)]*P[indx_bck] + a_y[indx_ay]*P[indx_frnt] + deltax*deltax*fn[indx];
           P[indx] /= a_x[indx_ax-1]+a_x[indx_ax]+a_y[indx_ay-(pmesh-2)]+a_y[indx_ay];
         }
       }
     }
-    error = compute_error(a_x,a_y,P);
+    error = compute_error(a_x,a_y,P, fn);
     if (fabs(error) < tol) {
       break;
     }
   }
 }
-double compute_error(double *a_x, double *a_y, double *P) {
+double compute_error(double *a_x, double *a_y, double *P, double *fn) {
   double error=0.0;
-  long indx, indx_rght, indx_frnt, indx_lft, indx_bck, i, j;
+  long indx, indx_rght, indx_frnt, indx_lft, indx_bck, i, j,indx_ax,indx_ay;
   for(i=1; i < pmesh-1; i++) {
     for(j=1;j < pmesh-1; j++) {
       indx  = i*pmesh    + j;
-      indx_right         = indx      + 1;
-      indx_front         = indx      + MESHY;
-      indx_left          = indx      - 1;
-      indx_back          = indx      - MESHY;
+      indx_rght         = indx      + 1;
+      indx_frnt         = indx      + pmesh;
+      indx_lft          = indx      - 1;
+      indx_bck          = indx      - pmesh;
       indx_ax      = i*(pmesh-1)  +j;
       indx_ay      = i*(pmesh-2)   +j;
 
       error += fabs(a_x[indx_ax-1]*P[indx_lft] + a_x[indx_ax]*P[indx_rght]
       + a_y[indx_ay-(pmesh-2)]*P[indx_bck] + a_y[indx_ay]*P[indx_frnt] +
-      a_x[indx_ax-1]+a_x[indx_ax]+a_y[indx_ay-(pmesh-2)]+a_y[indx_ay] - deltax2*fn[indx]);
+      a_x[indx_ax-1]+a_x[indx_ax]+a_y[indx_ay-(pmesh-2)]+a_y[indx_ay] - deltax*deltax*fn[indx]);
     }
   }
   return(error);
@@ -263,7 +261,7 @@ double compute_error(double *a_x, double *a_y, double *P) {
 void boundary_pressure(){
 
   int i ,y ,z;
-  int m2 = m*m;
+
   for (i=0; i< pmesh; i++)
   {
     y= i*pmesh;
@@ -274,16 +272,16 @@ void boundary_pressure(){
     P[y]        = P[y+1];
     P[z]        = P[z-1];
     // up - down
-    P[i]          = P[MESHX + i];
-    P[m2-m+i]     = P[m2-2*m+i];
+    P[i]          = P[pmesh + i];
+    P[pmesh2-pmesh+i]     = P[pmesh2-2*pmesh+i];
     #endif
-    #ifdef dirichlet
+    #ifdef dirichlet_pressure
     //left - right
     P[y]        = p_left;
     P[z]        = p_right;
     // up - down
     P[i]        = p_up;
-    P[pmesh*pmesh-pmesh+i]  = p_down;
+    P[pmesh2-pmesh+i]  = p_down;
     #endif
   }
 }

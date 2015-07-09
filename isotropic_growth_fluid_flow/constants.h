@@ -1,5 +1,5 @@
 
-#define pmesh 65
+#define pmesh (65)
 #define pmesh2 (pmesh*pmesh)
 #define MESHX (pmesh + 1)
 #define MESHX2 (MESHX*MESHX)
@@ -32,7 +32,7 @@
 #define Vw (0.0) // west wall velocity
 #define Vn (0.0) // north wall velocity
 #define Vs (0.0) // south wall velocity
-/----------------------------------------------
+//----------------------------------------------
 #define p_up      (0)
 #define p_down    (0)
 #define p_left    (5)

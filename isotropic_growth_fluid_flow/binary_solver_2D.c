@@ -6,12 +6,12 @@
 
 #define save_phi (10)
 #define save_fluid (10)
-#define phi_timesteps (100001)
+#define ntimesteps (100001)
 
-//#define Nothing
-#define Centre
+#define Nothing
+//#define Centre
 //#define Corner
-#define growth
+//#define growth
 
 void phi_update();
 void phi_initialize();
@@ -30,7 +30,7 @@ void main(){
   phi_initialize();
   fluid_initialize();
 
-  for (t=0; t < phi_timesteps; t++) {
+  for (t=0; t < ntimesteps; t++) {
 #ifdef growth
     neuman_boundary(phi_old, MESHX);
     neuman_boundary(mu_old, MESHX);
@@ -124,12 +124,11 @@ void phi_initialize() {
     {
       z= i*MESHX + j;
       phi_old[z] = 0.0;
-      mu_old[z] = Mu - deltaMu;
+      mu_old[z] = 0.0;
     }
   }
 #endif
 }
-
 void neuman_boundary(double *c, int m) {
   int i ,y ,z;
   int m2 = m*m;
@@ -164,7 +163,7 @@ void write2file_phi ( int t, int m,double *phi) {
   FILE *fp;
   char filename[1000];
 
-  sprintf(filename,"./datafiles_uniSolverCheck_2/phi_%d.dat",t);
+  sprintf(filename,"./datafiles/phi_%d.dat",t);
   fp = fopen(filename,"w");
   for ( i = 0; i < m; i++)
   {
@@ -207,13 +206,8 @@ void write2file_fluid (int t, double *u, double *v, int M) {
   int i,j,z;
   FILE *fp1, *fp2, *fp3, *fp4;
   char fname1[1000],fname2[1000],fname3[1000], fname4[1000];
-  //sprintf(fname1,"./datafiles2/Ux_%d.dat",t);
-  //sprintf(fname2,"./datafiles2/Vy_%d.dat",t);
-  //sprintf(fname3,"./datafiles4/P_%d.dat",t);
-  sprintf(fname4,"./datafiles_uniSolverCheck_2/velocity_%d.dat",t);
-  //fp1 = fopen(fname1,"w");
-  //fp2 = fopen(fname2,"w");
-  //fp3 = fopen(fname3,"w");
+  sprintf(fname4,"./datafiles/velocity_%d.dat",t);
+
   fp4 = fopen(fname4,"w");
 
     for ( i = 0; i < M; i++)
@@ -221,26 +215,8 @@ void write2file_fluid (int t, double *u, double *v, int M) {
       for ( j=0; j < M; j++)
       {
         z= i*M + j;
-
-        //fprintf(fp1,"%le ",u[z]);
-	//fprintf(fp2,"%le ",v[z]);
-	fprintf(fp4,"%d %d %le %le\n",j,i,u[z],v[z]);
+	      fprintf(fp4,"%d %d %le %le\n",j,i,u[z],v[z]);
       }
-      //fprintf(fp1,"\n");
-      //fprintf(fp2,"\n");
     }
-    //fclose(fp1);
-    //fclose(fp2);
     fclose(fp4);
-
-    /*for ( i = 0; i < M-1; i++)
-    {
-      for ( j=0; j < M-1; j++)
-      {
-        z= i*(M-1) + j;
-        fprintf(fp3,"%le ",P[z]);
-      }
-      fprintf(fp3,"\n");
-    }
-    fclose(fp3);*/
 }
