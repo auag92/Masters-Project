@@ -1,39 +1,37 @@
-void Gauss_siedel(double *V, double *fn) {
+void Gauss_siedel(double *P, double *fn, double *a_x, double *a_y) {
   long i, j, indx, indx_rght, indx_frnt, indx_lft, indx_bck;
-  double y_old,A[MESHX*MESHY],B[MESHX*MESHY],C[MESHX*MESHY],E[MESHX*MESHY],F[MESHX*MESHY];
+  double P_old;
   double error;
   double tol=1.0e-6;
-
-  for(i=1; i < MESHX-1; i++) {
-    for(j=1; j< MESHY-1; j++) {
-      indx          = i*MESHY    + j;
-      indx_rght     = indx      + 1;
-      indx_frnt     = indx      + MESHY;
-      indx_lft      = indx      - 1;
-      indx_bck      = indx      - MESHY;
-
-      A[indx]      = (zeta(phi[indx_lft])  + zeta(phi[indx]));  //left
-      B[indx]      = (zeta(phi[indx_rght]) + zeta(phi[indx]));  //right
-      C[indx]      = (zeta(phi[indx_bck])  + zeta(phi[indx]));  //back
-      E[indx]      = (zeta(phi[indx_frnt]) + zeta(phi[indx])); //front
-      F[indx]      = -(A[indx] + B[indx] + C[indx] + E[indx]);
-    }
-  }
+  // for(i=1; i < pmesh-2; i++) {
+  //   for(j=1; j< pmesh-2; j++) {
+  //     indx          = i*MESHX    + j;
+  //     indx_rght     = indx      + 1;
+  //     indx_frnt     = indx      + MESHX;
+  //     indx_lft      = indx      - 1;
+  //     indx_bck      = indx      - MESHX;
+  //
+  //     A[indx]      = 1.0 - 0.5*(phi[indx] + phi[indx_frnt];  //
+  //     B[indx]      = (zeta(phi[indx_bck])  + zeta(phi[indx]));  //back
+  //     E[indx]      = (zeta(phi[indx_frnt]) + zeta(phi[indx])); //front
+  //     F[indx]      = -(A[indx] + B[indx] + C[indx] + E[indx]);
+  //   }
+  // }
   for(;;) {
-    for(i=1; i < MESHX-1; i++) {
-      for(j=1;j < MESHY-1;j++) {
-        indx         = i*MESHY    + j;
+    for(i=1; i < pmesh-1; i++) {
+      for(j=1;j < pmesh-1;j++) {
+        indx         = i*pmesh    + j;
         indx_rght    = indx      + 1;
         indx_frnt    = indx      + MESHY;
         indx_lft     = indx      - 1;
         indx_bck     = indx      - MESHY;
 
         if (((i+j)%2) == 0) {
-          V_old     = V[indx];
+          P_old     = P[indx];
 
-          V[indx]  = A[indx]*V[indx_lft] + B[indx]*V[indx_rght]
-          + C[indx]*V[indx_bck] + E[indx]*V[indx_frnt];
-          V[indx] /= (-F[indx]);
+          P[indx]  = P[indx_lft] + P[indx_rght]
+          + P[indx_bck] + P[indx_frnt] + deltax2*fn[indx];
+          P[indx] /= (-F[indx]);
         }
       }
     }
@@ -48,8 +46,8 @@ void Gauss_siedel(double *V, double *fn) {
         if (((i+j)%2) != 0) {
           V_old     = V[indx];
 
-          V[indx]  = A[indx]*V[indx_lft] + B[indx]*V[indx_rght]
-          + C[indx]*V[indx_bck] + E[indx]*V[indx_frnt];
+          P[indx]  = a_x[]P[indx_lft] + P[indx_rght]
+          + P[indx_bck] + P[indx_frnt] - deltax2*fn[indx];
           V[indx] /= (-F[indx]);
         }
       }
@@ -72,15 +70,8 @@ double compute_error(double *A, double *B, double *C, double *E, double *F, doub
       indx_back          = indx      - MESHY;
 
       error += fabs(A[indx]*V[indx_lft] + B[indx]*V[indx_rght]
-	     + C[indx]*V[indx_bck] + E[indx]*V[indx_frot] + F[indx]*V[indx]);
+	     + C[indx]*V[indx_bck] + E[indx]*V[indx_frnt] + F[indx]*V[indx]);
     }
   }
   return(error);
 }
-
-
-hello world my name
-
-is apaar
-
-hi
