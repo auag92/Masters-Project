@@ -5,7 +5,7 @@
 #include "fluid_solver.c"
 
 #define save_phi (10)
-#define save_fluid (10)
+#define save_fluid (1)
 #define ntimesteps (100001)
 
 #define Nothing

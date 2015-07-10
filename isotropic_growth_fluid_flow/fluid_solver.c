@@ -55,7 +55,6 @@ fluid_solver(){
   V_update(MESHX);
   boundary_fluid();
 }
-
 void LHS_fn(){
   int i,j,x,m,x1,x2,y,y1,y2,z,z1,z2,c,d1,d2,t;
   int phi_indx,a_indx;
@@ -64,7 +63,7 @@ void LHS_fn(){
     for (j=0;j<t-1;j++){
       phi_indx = (i+1)*MESHX + j+1;
       a_indx = i*t +j;
-      a_x[x] = 1.0 - 0.5*(phi_old[phi_indx] + phi_old[phi_indx+MESHX]);
+      a_x[x] = 1.0;// - 0.5*(phi_old[phi_indx] + phi_old[phi_indx+MESHX]);
     }
   }
   t = pmesh-2;
@@ -72,7 +71,7 @@ void LHS_fn(){
     for (j=0;j<t+1;j++){
       phi_indx = (i+1)*MESHX + j+1;
       a_indx = i*t + j;
-      a_y[y] = 1.0 - 0.5*(phi_old[z2] + phi_old[z2+1]);
+      a_y[y] = 1.0;// - 0.5*(phi_old[z2] + phi_old[z2+1]);
     }
   }
 }
@@ -192,7 +191,7 @@ void Gauss_siedel(double *P, double *fn, double *a_x, double *a_y) {
   double P_old;
   double error;
   double tol=1.0e-6;
-
+  int iter  = 0;
   for(;;) {
     for(i=1; i < pmesh-1; i++) {
       for(j=1;j < pmesh-1;j++) {
@@ -207,9 +206,11 @@ void Gauss_siedel(double *P, double *fn, double *a_x, double *a_y) {
         if (((i+j)%2) == 0) {
           P_old     = P[indx];
 
-          P[indx]  = a_x[indx_ax-1]*P[indx_lft] + a_x[indx_ax]*P[indx_rght]
-          + a_y[indx_ay-(pmesh-2)]*P[indx_bck] + a_y[indx_ay]*P[indx_frnt] + deltax*deltax*fn[indx];
-          P[indx] /= a_x[indx_ax-1]+a_x[indx_ax]+a_y[indx_ay-(pmesh-2)]+a_y[indx_ay];
+          P[indx]  =-1.0*(P[indx_lft] + P[indx_rght]
+          + P[indx_bck] + P[indx_frnt]) + deltax*deltax*fn[indx];
+          // P[indx]  = a_x[indx_ax-1]*P[indx_lft] + a_x[indx_ax]*P[indx_rght]
+          // + a_y[indx_ay-(pmesh-2)]*P[indx_bck] + a_y[indx_ay]*P[indx_frnt] + deltax*deltax*fn[indx];
+          P[indx] /= -4.0;//a_x[indx_ax-1]+a_x[indx_ax]+a_y[indx_ay-(pmesh-2)]+a_y[indx_ay];
         }
       }
     }
@@ -226,13 +227,17 @@ void Gauss_siedel(double *P, double *fn, double *a_x, double *a_y) {
         if (((i+j)%2) != 0) {
           P_old     = P[indx];
 
-          P[indx]  = a_x[indx_ax-1]*P[indx_lft] + a_x[indx_ax]*P[indx_rght]
-          + a_y[indx_ay-(pmesh-2)]*P[indx_bck] + a_y[indx_ay]*P[indx_frnt] + deltax*deltax*fn[indx];
-          P[indx] /= a_x[indx_ax-1]+a_x[indx_ax]+a_y[indx_ay-(pmesh-2)]+a_y[indx_ay];
+          P[indx]  =-1.0*(P[indx_lft] + P[indx_rght]
+          + P[indx_bck] + P[indx_frnt]) + deltax*deltax*fn[indx];
+          /*P[indx]  =-1.0*(a_x[indx_ax-1]*P[indx_lft] + a_x[indx_ax]*P[indx_rght]
+          + a_y[indx_ay-(pmesh-2)]*P[indx_bck] + a_y[indx_ay]*P[indx_frnt]) + deltax*deltax*fn[indx];*/
+          P[indx] /= -4.0;// a_x[indx_ax-1]+a_x[indx_ax]+a_y[indx_ay-(pmesh-2)]+a_y[indx_ay];
         }
       }
     }
     error = compute_error(a_x,a_y,P, fn);
+    iter++;
+    printf("iter=%d\terror=%lf\n",iter,error);
     if (fabs(error) < tol) {
       break;
     }
@@ -252,8 +257,8 @@ double compute_error(double *a_x, double *a_y, double *P, double *fn) {
       indx_ay      = i*(pmesh-2)   +j;
 
       error += fabs(a_x[indx_ax-1]*P[indx_lft] + a_x[indx_ax]*P[indx_rght]
-      + a_y[indx_ay-(pmesh-2)]*P[indx_bck] + a_y[indx_ay]*P[indx_frnt] +
-      a_x[indx_ax-1]+a_x[indx_ax]+a_y[indx_ay-(pmesh-2)]+a_y[indx_ay] - deltax*deltax*fn[indx]);
+      + a_y[indx_ay-(pmesh-2)]*P[indx_bck] + a_y[indx_ay]*P[indx_frnt] -
+      (a_x[indx_ax-1]+a_x[indx_ax]+a_y[indx_ay-(pmesh-2)]+a_y[indx_ay])*P[indx] - deltax*deltax*fn[indx]);
     }
   }
   return(error);
