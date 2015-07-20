@@ -1,5 +1,5 @@
 
-#define pmesh 257
+#define pmesh 129
 #define pmesh2 (pmesh*pmesh)
 #define MESHX (pmesh + 1)
 #define MESHX2 (MESHX*MESHX)
@@ -16,7 +16,7 @@
 #define Mob (1.0)             /*Mobility*/
 #define E (4.0)            /*epsilon - dimensions of length [m]*/
 #define tau (1.0)
-#define deltaMu (0.3) //
+#define deltaMu (0.4) //
 #define Mu (1.0)     //  chemical potential
 //-----------------------------------------
 

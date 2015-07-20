@@ -27,7 +27,7 @@ fluid_solver(){
 
   int i,j,z,x;
   double dp_dx,dp_dy,du_dt,dv_dt;
-  double phi,phi_1,phi_2,phi_3,phi_4;
+  double phi;
 
   boundary_fluid();
   computeH(u_old,v_old,Hx,Hy);
