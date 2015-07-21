@@ -1,14 +1,48 @@
-gs_mpi(){
+#define MASTER 0
+#define NONE 0
+#define BEGIN 999
+#define LTAG  777
+#define RTAG  666
+#define WRITE 555
+
+gs_mpi(double *P, double *fn, double *a_x, double *a_y){
   double error;
   double tol=1.0e-6;
   int iter  = 0;
-  if(taskid == MASTER){
-    for(;;) {
-      iter++;
-      error = compute_error(a_x,a_y,P, fn);
-      printf("iter=%d\terror=%lf\n",iter,error);
-      if (fabs(error) < tol) {
-        break;
+  if ( taskid == MASTER ){
+    averow    =   MESHX/numworkers;
+    extra     =   MESHX%numworkers;
+    offset    =   0;
+    for (rank=1; rank <= (numworkers); rank++){
+      rows        =    (rank <= extra) ? averow+1 : averow;
+
+      left_node    =   rank - 1;
+      right_node   =   rank + 1;
+
+      if ( rank == 1 ){
+        left_node  = NONE;
+      }
+      if ( rank == (numworkers) ){
+        right_node = NONE;
+      }
+      dest = rank;
+
+      MPI_Send(&offset,       1,           MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
+      MPI_Send(&rows,         1,           MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
+      MPI_Send(&left_node,    1,           MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
+      MPI_Send(&right_node,   1,           MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
+      MPI_Send(&P[offset],      rows*pmesh,  MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+      MPI_Send(&fn[offset],     rows*pmesh,  MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+      MPI_Send(&a_x[offset],    (rows-2)*(pmesh-1),  MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+      MPI_Send(&a_y[offset],    (rows-1)*(pmesh-2),  MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+
+
+      offset = offset + rows;
+    }
+    for (t=1; t < ntimesteps; t++) {
+      if (t%saveT == 0) {
+        receivefrmworker();
+        check_error();
       }
     }
   }
