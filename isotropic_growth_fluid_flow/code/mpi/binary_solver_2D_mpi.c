@@ -4,21 +4,29 @@
 #include "math.h"
 #include "constants.h"
 #include "variables.h"
+#include "fluid_solver_mpi.c"
+#include "MPI_vals.h"
 //------------------------------------------------------------
-#define MASTER 0
-#define NONE 0
-#define BEGIN 999
-#define LTAG  777
-#define RTAG  666
-#define WRITE 555
-//-------------------------------------------------------------
-int numtasks, numworkers, taskid, rank, dest;
-int averow, extra, offset;
-int left_node, right_node;
-int start, end;
 int t;
-
+//-------------------------------------------------------------
+#define growth
+#define Centre
+//#define Corner
+//#define Nothing
+//--------------------------------------------------------------
+#define save_phi (10)
+#define save_fluid (10)
+#define phi_timesteps (100001)
+//--------------------------------------------------------------
+void phi_update();
 void phi_initialize();
+void neuman_boundary(double *c, int m);
+void concentration(double *phi, double *mu, double *c, int m );
+void write2file_phi ( int t, int m,double *phi);
+void fluid_initialize();
+void write2file_fluid (int t, double *u, double *v, int M);
+void allocate_memory();
+void free_memory();
 void solverloop();
 
 void main(int argc, char *argv[]){
@@ -29,26 +37,45 @@ void main(int argc, char *argv[]){
   MPI_Comm_rank(MPI_COMM_WORLD,&taskid);
 
   if(taskid == MASTER){
-
-
+    allocate_memory();
     phi_initialize();
     fluid_initialize();
-    for (t=1; t <= phi_timesteps; t++){
-      solverloop(phi_old, phi_new, mu_old, mu_new);
+    for (t=0; t < phi_timesteps; t++) {
+    #ifdef growth
+      neuman_boundary(phi_old, MESHX);
+      neuman_boundary(mu_old, MESHX);
+      concentration(phi_old, mu_old, conc, MESHX);
+      neuman_boundary(conc, MESHX);
+      laplacian(phi_old, lap_phi, MESHX);
+      laplacian(mu_old,  lap_mu, MESHX);
+      solverloop();
+      update(phi_old, phi_new, MESHX);
+      update(mu_old, mu_new, MESHX);
+      if((t%save_phi) == 0) {
+       write2file_phi(t, MESHX,phi_old);
+      }
+    #endif
 
+      if (t>20) {
+        fluid_solver();
+        if((t%save_fluid) ==0) {
+             write2file_fluid (t,u_old,v_old,MESHX);
+        }
+      }
     }
-
+    free_memory();
   }
   MPI_Finalize();
 }
 
-void memory_allocation(){
+void allocate_memory(){
   phi_old     =   (double *)malloc(MESHX*MESHX*sizeof(double));
   phi_new     =   (double *)malloc(MESHX*MESHX*sizeof(double));
   mu_old      =   (double *)malloc(MESHX*MESHX*sizeof(double));
   mu_new      =   (double *)malloc(MESHX*MESHX*sizeof(double));
   lap_phi     =   (double *)malloc(MESHX*MESHX*sizeof(double));
   lap_mu      =   (double *)malloc(MESHX*MESHX*sizeof(double));
+  conc        =   (double *)malloc(MESHX*MESHX*sizeof(double));
   P           =   (double *)malloc(MESHX*MESHX*sizeof(double));
   v_old       =   (double *)malloc(MESHX*MESHX*sizeof(double));
   u_old       =   (double *)malloc(MESHX*MESHX*sizeof(double));
@@ -62,7 +89,29 @@ void memory_allocation(){
   Hx          =   (double *)malloc(MESHX*MESHX*sizeof(double));
   Hy          =   (double *)malloc(MESHX*MESHX*sizeof(double));
 }
-void solverloop(double *phi_old, double *phi_new, double *mu_old, double *mu_new, double *u_old, double *v_old, double *lap_phi, double *lap_mu){
+
+void free_memory(){
+  free(phi_old);
+  free(phi_new);
+  free(mu_old) ;
+  free(mu_new);
+  free(lap_phi);
+  free(lap_mu);
+  free(conc);
+  free(P);
+  free(v_old);
+  free(u_old);
+  free(v_now);
+  free(u_now);
+  free(v_str);
+  free(u_str);
+  free(a_x);
+  free(a_y);
+  free(rhs_fn);
+  free(Hx);
+  free(Hy);
+}
+void solverloop(){
   int i,j,z;
   double p,dp_dt,dmu_dt, kai;
   double dc_dx, dc_dy, V_gradC;

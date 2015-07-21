@@ -3,7 +3,7 @@
 #include <math.h>
 #include "constants.h"
 #include "variables.h"
-#include "gauss_siedel_mpi.c"
+//#include "gauss_siedel_mpi.c"
 //#include "mg_solver.c"
 #define ntimesteps 1
 #define phi_tol 0.5
@@ -22,7 +22,7 @@ void V_str(int m);
 void LHS_fn();
 double compute_error(double *a_x, double *a_y, double *P, double *fn);
 void Gauss_siedel(double *P, double *fn, double *a_x, double *a_y);
-void gs_mpi(double *P, double *fn, double *a_x, double *a_y);
+//void gs_mpi(double *P, double *fn, double *a_x, double *a_y);
 void boundary_pressure();
 
 fluid_solver(){
