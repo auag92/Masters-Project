@@ -8,8 +8,6 @@
 #define inv_deltax2 (inv_deltax*inv_deltax)
 #define deltat (0.01)
 
-
-
 //----------------------------
 #define K (0.5)             /*Partition Coefficient*/
 #define G (1.0)             /*Surface Energy*/

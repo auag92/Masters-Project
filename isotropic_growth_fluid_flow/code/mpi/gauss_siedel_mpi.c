@@ -7,20 +7,34 @@
 #define ERROR 888
 #define BREAK 111
 
-//int offset_ax; offset_ay;
-double error, err;
-double tol=1.0e-6;
-int iter  = 0;
+//------------------------------------------------
+int numtasks, numworkers, taskid, rank, dest;
+int averow, extra, offset;
+int left_node, right_node;
+int start, end;
+int source, msgtype;
+int rows;
+MPI_Status status;
 int flag = 0;
+double error, err;
+//-------------------------------------------------
 
-gs_mpi(double *P, double *fn, double *a_x, double *a_y){
+void    boundary_pressure_mpi(int taskid);
+void    red_solver(double *P, double *fn);
+void    black_solver(double *P, double *fn);
+double  compute_error_mpi(double *P, double *fn);
+void    mpiexchange(int taskid);
+void    sendtomaster(int taskid);
+void    receivefrmworker();
+
+gs_mpi( double *P, double *fn, double *a_x, double *a_y ){
 
   if ( taskid == MASTER ){
-    averow    =   MESHX/numworkers;
-    extra     =   MESHX%numworkers;
+    averow    =   pmesh/numworkers;
+    extra     =   pmesh%numworkers;
     offset    =   0;
-    for (rank=1; rank <= (numworkers); rank++){
-      rows        =    (rank <= extra) ? averow+1 : averow;
+    for ( rank=1; rank <= (numworkers); rank++){
+      rows         =   (rank <= extra) ? averow+1 : averow;
 
       left_node    =   rank - 1;
       right_node   =   rank + 1;
@@ -33,12 +47,14 @@ gs_mpi(double *P, double *fn, double *a_x, double *a_y){
       }
 
       dest = rank;
+
       MPI_Send(&offset,         1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&rows,           1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&left_node,      1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&right_node,     1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&P[offset],      rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&fn[offset],     rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+
       offset = offset + rows;
 
       // MPI_Send(&offset_ax,         1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
@@ -53,67 +69,74 @@ gs_mpi(double *P, double *fn, double *a_x, double *a_y){
         MPI_Recv(&err,     1,     MPI_DOUBLE,    rank,   ERROR,  MPI_COMM_WORLD, &status);
         error  += err;
       }
-      if (error < tol){
+      if (error < 10e-6){
         flag = 1;
-        for(rank = 1; rank <= numworkers; rank ++){
-          MPI_Send(flag,     1,     MPI_INT,    rank,   BREAK,  MPI_COMM_WORLD);
+        for( rank = 1; rank <= numworkers; rank++ ){
+          msgtype = BREAK;
+          dest = rank;
+          MPI_Send(&flag,     1,     MPI_INT,    dest,   msgtype,  MPI_COMM_WORLD);
         }
         receivefrmworker();
         break;
       }
       else{
         flag = 0;
-        for(rank = 1; rank <= numworkers; rank ++){
-          MPI_Send(flag,     1,     MPI_INT,    rank,   BREAK,  MPI_COMM_WORLD);
+        for ( rank = 1; rank <= numworkers; rank++ ){
+          msgtype = BREAK;
+          dest = rank;
+          MPI_Send(&flag,     1,     MPI_INT,    dest,   msgtype,  MPI_COMM_WORLD);
         }
       }
     }
   }
   if(taskid != MASTER){
-
-    MPI_Recv(&offset,         1,                   MPI_INT,         source,   BEGIN,  MPI_COMM_WORLD, &status);
-    MPI_Recv(&rows,           1,                   MPI_INT,         source,   BEGIN,  MPI_COMM_WORLD, &status);
-    MPI_Recv(&left_node,      1,                   MPI_INT,         source,   BEGIN,  MPI_COMM_WORLD, &status);
-    MPI_Recv(&right_node,     1,                   MPI_INT,         source,   BEGIN,  MPI_COMM_WORLD, &status);
+    source =  MASTER;
+    MPI_Recv(&offset,        1,      MPI_INT,     source,    BEGIN,   MPI_COMM_WORLD,  &status);
+    MPI_Recv(&rows,          1,      MPI_INT,     source,    BEGIN,   MPI_COMM_WORLD,  &status);
+    MPI_Recv(&left_node,     1,      MPI_INT,     source,    BEGIN,   MPI_COMM_WORLD,  &status);
+    MPI_Recv(&right_node,    1,      MPI_INT,     source,    BEGIN,   MPI_COMM_WORLD,  &status);
 
     P            =   (double *)malloc((rows+2)*pmesh*sizeof(double));
     fn           =   (double *)malloc((rows+2)*pmesh*sizeof(double));
 
     start = 1;
     if((taskid ==1) || (taskid == numworkers)){
-      if(taskid==1){
+      if(taskid == 1){
         MPI_Recv(&P[0],      rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
         MPI_Recv(&fn[0],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-      } else (taskid == numworkers) {
+      }
+      else {
         MPI_Recv(&P[1],      rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
         MPI_Recv(&fn[1],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
       }
-    end = rows-1
+      end = rows-1;
     }
     else{
-      MPI_Recv(&P[0],      rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-      MPI_Recv(&fn[0],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
+      MPI_Recv(&P[1],      rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
+      MPI_Recv(&fn[1],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
       end = rows;
     }
 
     for (; ;) {
-      boundary_pressure(taskid);
-      mpi_exchange();
-      red_solver();
-      mpiexchange();
-      black_solver();
-      error = compute_error();
+      boundary_pressure_mpi(taskid);
+      mpiexchange(taskid);
+      red_solver(P, fn);
+      mpiexchange(taskid);
+      black_solver(P, fn);
+      error = compute_error_mpi(P, fn);
 
       MPI_Send(&error,     1,     MPI_DOUBLE,    MASTER,   ERROR,  MPI_COMM_WORLD);
-      MPI_Recv(flag,       1,     MPI_INT,       MASTER,   BREAK,  MPI_COMM_WORLD,&status);
+      MPI_Recv(&flag,      1,     MPI_INT,       MASTER,   BREAK,  MPI_COMM_WORLD,&status);
 
       if (flag == 1){
-        sendtomaster();
+        sendtomaster(taskid);
       }
     }
   }
+  free(P);
+  free(fn);
 }
-void red_solver(){
+void red_solver(double *P, double *fn){
   int i, j, indx, indx_rght, indx_frnt, indx_lft, indx_bck, indx_ax, indx_ay;
   for(i=start; i <= end; i++) {
     for(j=1;j < pmesh-1;j++) {
@@ -138,7 +161,7 @@ void red_solver(){
     }
   }
 }
-void black_solver(int rows){
+void black_solver(double *P, double *fn){
   int i, j, indx, indx_rght, indx_frnt, indx_lft, indx_bck, indx_ax, indx_ay;
   for(i=start; i <= end; i++) {
     for(j=1;j < pmesh-1;j++) {
@@ -163,14 +186,14 @@ void black_solver(int rows){
     }
   }
 }
-double compute_error(double *a_x, double *a_y, double *P, double *fn) {
+double compute_error_mpi(double *P, double *fn) {
   double error=0.0;
   int indx, indx_rght, indx_frnt, indx_lft, indx_bck, i, j,indx_ax,indx_ay;
   for(i=start; i < end; i++) {
     for(j=1;j < pmesh-1; j++) {
       indx  = i*pmesh    + j;
-      indx_rght         = indx      + 1;
       indx_frnt         = indx      + pmesh;
+      indx_rght         = indx      + 1;
       indx_lft          = indx      - 1;
       indx_bck          = indx      - pmesh;
       indx_ax      = (i-1)*(pmesh-1)  + j-1;
@@ -237,18 +260,19 @@ void mpiexchange(int taskid) {
     }
   }
 }
-void boundary_pressure(int taskid){
+void boundary_pressure_mpi(int taskid){
   int i ,y ,z;
   int indx_up, indx_dwn, indx_lft, indx_rght;
   if ( (taskid == 1) || (taskid == numworkers) ) {
     for (i = 0; i < pmesh; i++ ) {
-    if ( taskid == 1 ){
-      indx_up    = i;
-      P[indx_up] = p_up;
-    }
-    else if (taskid == numworkers) {
-      indx_dwn    = end + i;
-      P[indx_dwn] = p_down;
+      if ( taskid == 1 ){
+        indx_up       = i;
+        P[indx_up]    = p_up;
+      }
+      else if (taskid == numworkers) {
+        indx_dwn      = end + i;
+        P[indx_dwn]   = p_down;
+      }
     }
   }
   else{
@@ -256,7 +280,7 @@ void boundary_pressure(int taskid){
       indx_rght     = i*pmesh;
       indx_lft      = i*pmesh + pmesh - 1;
       P[indx_lft]   = p_left;
-      P[indx_rght]  = p_rght;
+      P[indx_rght]  = p_right;
     }
   }
 }

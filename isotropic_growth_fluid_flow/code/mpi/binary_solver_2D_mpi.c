@@ -5,14 +5,14 @@
 #include "constants.h"
 #include "variables.h"
 #include "fluid_solver_mpi.c"
-#include "MPI_vals.h"
+#include "gauss_siedel_mpi.c"
 //------------------------------------------------------------
 int t;
 //-------------------------------------------------------------
-#define growth
-#define Centre
+//#define growth
+//#define Centre
 //#define Corner
-//#define Nothing
+#define Nothing
 //--------------------------------------------------------------
 #define save_phi (10)
 #define save_fluid (10)

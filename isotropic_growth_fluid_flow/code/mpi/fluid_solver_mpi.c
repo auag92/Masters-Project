@@ -3,7 +3,6 @@
 #include <math.h>
 #include "constants.h"
 #include "variables.h"
-//#include "gauss_siedel_mpi.c"
 //#include "mg_solver.c"
 #define ntimesteps 1
 #define phi_tol 0.5
