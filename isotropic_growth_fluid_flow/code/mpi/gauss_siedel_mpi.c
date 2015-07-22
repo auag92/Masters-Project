@@ -5,10 +5,13 @@
 #define RTAG  666
 #define WRITE 555
 
+int offset_ax; offset_ay;
+double error;
+double tol=1.0e-6;
+int iter  = 0;
+
 gs_mpi(double *P, double *fn, double *a_x, double *a_y){
-  double error;
-  double tol=1.0e-6;
-  int iter  = 0;
+
   if ( taskid == MASTER ){
     averow    =   MESHX/numworkers;
     extra     =   MESHX%numworkers;
@@ -33,16 +36,21 @@ gs_mpi(double *P, double *fn, double *a_x, double *a_y){
       MPI_Send(&right_node,     1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&P[offset],      rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&fn[offset],     rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
-      MPI_Send(&a_x[offset],    (rows-2)*(pmesh-1),  MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
-      MPI_Send(&a_y[offset],    (rows-1)*(pmesh-2),  MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
-
-
       offset = offset + rows;
+
+      // MPI_Send(&offset_ax,         1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
+      // MPI_Send(&rows_ax,           1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
+      // MPI_Send(&a_x[offset_ax],    (rows-2)*(pmesh-1),  MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+      // MPI_Send(&offset_ay,         1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
+      // MPI_Send(&rows_ay,           1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
+      // MPI_Send(&a_y[offset_ay],    (rows-1)*(pmesh-2),  MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+
     }
     for (t=1; t < ntimesteps; t++) {
       if (t%saveT == 0) {
         receivefrmworker();
-        check_error();
+        if(check_error())
+          break;
       }
     }
   }
@@ -53,28 +61,24 @@ gs_mpi(double *P, double *fn, double *a_x, double *a_y){
     MPI_Recv(&left_node,      1,                   MPI_INT,         source,   BEGIN,  MPI_COMM_WORLD, &status);
     MPI_Recv(&right_node,     1,                   MPI_INT,         source,   BEGIN,  MPI_COMM_WORLD, &status);
 
-    P            =   (double *)malloc(rows*pmesh*sizeof(double));
-    fn           =   (double *)malloc(rows*pmesh*sizeof(double));
-    a_x          =   (double *)malloc(rows*pmesh*sizeof(double));
-    a_y          =   (double *)malloc(rows*pmesh*sizeof(double));
+    P            =   (double *)malloc((rows+2)*pmesh*sizeof(double));
+    fn           =   (double *)malloc((rows+2)*pmesh*sizeof(double));
 
-    if(taskid ==1){
-      MPI_Recv(&P[0],      rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-      MPI_Recv(&fn[0],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-      MPI_Recv(&a_x[0],    (rows-2)*(pmesh-1),  MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-      MPI_Recv(&a_y[0],    (rows-1)*(pmesh-2),  MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-    }
-    else if(taskid == numworkers){
-      MPI_Recv(&P[1],      rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-      MPI_Recv(&fn[1],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-      MPI_Recv(&a_x[1],    (rows-2)*(pmesh-1),  MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-      MPI_Recv(&a_y[1],    (rows-1)*(pmesh-2),  MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
+    start = 1;
+    if((taskid ==1) || (taskid == numworkers)){
+      if(taskid==1){
+        MPI_Recv(&P[0],      rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
+        MPI_Recv(&fn[0],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
+      } else (taskid == numworkers) {
+        MPI_Recv(&P[1],      rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
+        MPI_Recv(&fn[1],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
+      }
+    end = rows-1
     }
     else{
       MPI_Recv(&P[0],      rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
       MPI_Recv(&fn[0],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-      MPI_Recv(&a_x[0],    (rows-2)*(pmesh-1),  MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-      MPI_Recv(&a_y[0],    (rows-1)*(pmesh-2),  MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
+      end = rows;
     }
 
     boundary_pressure(taskid);
@@ -196,30 +200,22 @@ void mpiexchange(int taskid) {
     }
   }
 }
-void boundary_pressure(){
+void boundary_pressure(int taskid){
 
   int i ,y ,z;
-
-  for (i=0; i< pmesh; i++)
-  {
-    y= i*pmesh;
-    z= i*pmesh + pmesh-1;
-
-    #ifdef neumann_pressure
-    //left - right
-    P[y]        = P[y+1];
-    P[z]        = P[z-1];
-    // up - down
-    P[i]          = P[pmesh + i];
-    P[pmesh2-pmesh+i]     = P[pmesh2-2*pmesh+i];
-    #endif
-    #ifdef dirichlet_pressure
-    //left - right
-    P[y]        = p_left;
-    P[z]        = p_right;
-    // up - down
-    P[i]        = p_up;
-    P[pmesh2-pmesh+i]  = p_down;
-    #endif
+  if ( (taskid == 1) || (taskid == numworkers) ) {
+    for (i = 0; i < pmesh; i++ ) {
+    if ( taskid == 1 ){
+      P[i] = p_up;
+    }
+    else if (taskid == numworkers) {
+      P[end + i] = p_down;
+    }
   }
+  else{
+    for (i=start; i <= end; i++){
+
+    }
+
+  }  
 }
