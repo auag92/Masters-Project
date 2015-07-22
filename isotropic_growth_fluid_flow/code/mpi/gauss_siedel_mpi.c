@@ -201,21 +201,25 @@ void mpiexchange(int taskid) {
   }
 }
 void boundary_pressure(int taskid){
-
   int i ,y ,z;
+  int indx_up, indx_dwn, indx_lft, indx_rght;
   if ( (taskid == 1) || (taskid == numworkers) ) {
     for (i = 0; i < pmesh; i++ ) {
     if ( taskid == 1 ){
-      P[i] = p_up;
+      indx_up    = i;
+      P[indx_up] = p_up;
     }
     else if (taskid == numworkers) {
-      P[end + i] = p_down;
+      indx_dwn    = end + i;
+      P[indx_dwn] = p_down;
     }
   }
   else{
     for (i=start; i <= end; i++){
-
+      indx_rght     = i*pmesh;
+      indx_lft      = i*pmesh + pmesh - 1;
+      P[indx_lft]   = p_left;
+      P[indx_rght]  = p_rght;
     }
-
-  }  
+  }
 }
