@@ -4,8 +4,9 @@
 #include "math.h"
 #include "constants.h"
 #include "variables.h"
-#include "fluid_solver_mpi.c"
 #include "gauss_siedel_mpi.c"
+#include "fluid_solver_mpi.c"
+
 //------------------------------------------------------------
 int t;
 //-------------------------------------------------------------
@@ -16,7 +17,7 @@ int t;
 //--------------------------------------------------------------
 #define save_phi (10)
 #define save_fluid (10)
-#define phi_timesteps (100001)
+#define phi_timesteps (100)
 //--------------------------------------------------------------
 void phi_update();
 void phi_initialize();
@@ -58,17 +59,23 @@ void main(int argc, char *argv[]){
 
       if (t>20) {
         fluid_solver();
+        printf("I am done with the fluid flow solver\n");
         if((t%save_fluid) ==0) {
              write2file_fluid (t,u_old,v_old,MESHX);
         }
       }
+      printf("t=%d\n",t);
     }
     free_memory();
+
+    } else {
+    // gs_mpi(P, fn, a_x, a_y);
+    gs_mpi();
   }
   MPI_Finalize();
 }
 
-void allocate_memory(){
+void allocate_memory() {
   phi_old     =   (double *)malloc(MESHX*MESHX*sizeof(double));
   phi_new     =   (double *)malloc(MESHX*MESHX*sizeof(double));
   mu_old      =   (double *)malloc(MESHX*MESHX*sizeof(double));
@@ -76,7 +83,7 @@ void allocate_memory(){
   lap_phi     =   (double *)malloc(MESHX*MESHX*sizeof(double));
   lap_mu      =   (double *)malloc(MESHX*MESHX*sizeof(double));
   conc        =   (double *)malloc(MESHX*MESHX*sizeof(double));
-  P           =   (double *)malloc(MESHX*MESHX*sizeof(double));
+  P           =   (double *)malloc(pmesh*pmesh*sizeof(double));
   v_old       =   (double *)malloc(MESHX*MESHX*sizeof(double));
   u_old       =   (double *)malloc(MESHX*MESHX*sizeof(double));
   v_now       =   (double *)malloc(MESHX*MESHX*sizeof(double));
@@ -85,7 +92,7 @@ void allocate_memory(){
   u_str       =   (double *)malloc(MESHX*MESHX*sizeof(double));
   a_x         =   (double *)malloc(MESHX*MESHX*sizeof(double));
   a_y         =   (double *)malloc(MESHX*MESHX*sizeof(double));
-  rhs_fn      =   (double *)malloc(MESHX*MESHX*sizeof(double));
+  rhs_fn      =   (double *)malloc(pmesh*pmesh*sizeof(double));
   Hx          =   (double *)malloc(MESHX*MESHX*sizeof(double));
   Hy          =   (double *)malloc(MESHX*MESHX*sizeof(double));
 }
@@ -111,7 +118,7 @@ void free_memory(){
   free(Hx);
   free(Hy);
 }
-void solverloop(){
+void solverloop() {
   int i,j,z;
   double p,dp_dt,dmu_dt, kai;
   double dc_dx, dc_dy, V_gradC;

@@ -37,7 +37,8 @@ fluid_solver(){
   boundary_pressure();
   //multigrid(P, rhs_fn, a_x, a_y);
   //Gauss_siedel(P, rhs_fn, a_x, a_y);
-  gs_mpi(P, rhs_fn, a_x, a_y);
+  // gs_mpi(P, rhs_fn, a_x, a_y);
+ gs_mpi();
   for(i=1; i<MESHX-1; i++){
     for(j=1; j<MESHX-1; j++){
 	    z = i*MESHX +j;
