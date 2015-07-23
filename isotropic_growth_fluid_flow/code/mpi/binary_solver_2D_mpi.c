@@ -69,8 +69,12 @@ void main(int argc, char *argv[]){
     free_memory();
 
     } else {
-    // gs_mpi(P, fn, a_x, a_y);
-    gs_mpi();
+    for (t=0; t < phi_timesteps; t++) {
+      if (t>20) {
+        // gs_mpi(P, fn, a_x, a_y);
+        gs_mpi();
+      }
+    }
   }
   MPI_Finalize();
 }
