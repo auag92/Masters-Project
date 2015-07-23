@@ -17,6 +17,7 @@ int rows;
 MPI_Status status;
 int flag = 0;
 double error, err;
+int iter = 0;
 //-------------------------------------------------
 
 void    boundary_pressure_mpi(int taskid);
@@ -64,11 +65,14 @@ gs_mpi( double *P, double *fn, double *a_x, double *a_y ){
       // MPI_Send(&rows_ay,           1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
       // MPI_Send(&a_y[offset_ay],    (rows-1)*(pmesh-2),  MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
     }
+    iter = 0;
     for (;;) {
+      iter ++;
       for(rank = 1; rank <= numworkers; rank ++){
         MPI_Recv(&err,     1,     MPI_DOUBLE,    rank,   ERROR,  MPI_COMM_WORLD, &status);
         error  += err;
       }
+      printf( "%d, %le ", iter, error );
       if (error < 10e-6){
         flag = 1;
         for( rank = 1; rank <= numworkers; rank++ ){

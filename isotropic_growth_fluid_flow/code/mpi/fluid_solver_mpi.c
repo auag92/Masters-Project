@@ -35,8 +35,8 @@ fluid_solver(){
   RHS_fn(Hx,Hy,rhs_fn,MESHX);
   LHS_fn();
   //multigrid(P, rhs_fn, a_x, a_y);
-  Gauss_siedel(P, rhs_fn, a_x, a_y);
-  //gs_mpi(P, rhs_fn, a_x, a_y);
+  //Gauss_siedel(P, rhs_fn, a_x, a_y);
+  gs_mpi(P, rhs_fn, a_x, a_y);
   for(i=1; i<MESHX-1; i++){
     for(j=1; j<MESHX-1; j++){
 	    z = i*MESHX +j;
