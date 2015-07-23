@@ -17,7 +17,7 @@ int t;
 //--------------------------------------------------------------
 #define save_phi (10)
 #define save_fluid (10)
-#define phi_timesteps (100)
+#define phi_timesteps (10000)
 //--------------------------------------------------------------
 void phi_update();
 void phi_initialize();

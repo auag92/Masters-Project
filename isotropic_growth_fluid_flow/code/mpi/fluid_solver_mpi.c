@@ -7,8 +7,8 @@
 #define ntimesteps 1
 #define phi_tol 0.5
 #define dirichlet_pressure
-//#define LDC
-#define PipeFlow
+#define LDC
+//#define PipeFlow
 
 void update(double *old, double *now,int M);
 void laplacian(double *f, double *lap, int M);
@@ -21,7 +21,6 @@ void V_str(int m);
 void LHS_fn();
 double compute_error(double *a_x, double *a_y, double *P, double *fn);
 void Gauss_siedel(double *P, double *fn, double *a_x, double *a_y);
-//void gs_mpi(double *P, double *fn, double *a_x, double *a_y);
 void boundary_pressure();
 
 fluid_solver(){
@@ -38,7 +37,7 @@ fluid_solver(){
   //multigrid(P, rhs_fn, a_x, a_y);
   //Gauss_siedel(P, rhs_fn, a_x, a_y);
   // gs_mpi(P, rhs_fn, a_x, a_y);
- gs_mpi();
+  gs_mpi();
   for(i=1; i<MESHX-1; i++){
     for(j=1; j<MESHX-1; j++){
 	    z = i*MESHX +j;
