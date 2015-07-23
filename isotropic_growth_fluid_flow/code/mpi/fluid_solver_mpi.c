@@ -34,6 +34,7 @@ fluid_solver(){
   computeH(u_old,v_old,Hx,Hy);
   RHS_fn(Hx,Hy,rhs_fn,MESHX);
   LHS_fn();
+  boundary_pressure();
   //multigrid(P, rhs_fn, a_x, a_y);
   //Gauss_siedel(P, rhs_fn, a_x, a_y);
   gs_mpi(P, rhs_fn, a_x, a_y);
