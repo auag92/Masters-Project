@@ -67,13 +67,14 @@ gs_mpi( double *P, double *fn, double *a_x, double *a_y ){
     }
     iter = 0;
     for (;;) {
-      iter ++;
+
       for(rank = 1; rank <= numworkers; rank ++){
         MPI_Recv(&err,     1,     MPI_DOUBLE,    rank,   ERROR,  MPI_COMM_WORLD, &status);
         error  += err;
       }
+      iter ++;
       printf( "%d, %le ", iter, error );
-      if (error < 10e-6){
+      if ( error < 10e-6 ){
         flag = 1;
         for( rank = 1; rank <= numworkers; rank++ ){
           msgtype = BREAK;
