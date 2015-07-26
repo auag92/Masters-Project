@@ -42,6 +42,7 @@ void main(int argc, char *argv[]){
     allocate_memory();
     phi_initialize();
     fluid_initialize();
+    gs_allocate();
     for (t=0; t < phi_timesteps; t++) {
     #ifdef growth
       neuman_boundary(phi_old, MESHX);
@@ -68,14 +69,14 @@ void main(int argc, char *argv[]){
     }
     free_memory();
   } else { // This code fragment runs in the worker processes
-
-
+    gs_allocate();
     for (t=0; t < phi_timesteps; t++) {
       if (t>20) {
-        // gs_mpi(P, fn, a_x, a_y);
         gs_mpi();
       }
     }
+    free(P);
+    free(rhs_fn);
   }
   MPI_Finalize();
 }
@@ -89,15 +90,15 @@ void allocate_memory() {
   lap_mu      =   (double *)malloc(MESHX*MESHX*sizeof(double));
   conc        =   (double *)malloc(MESHX*MESHX*sizeof(double));
   P           =   (double *)malloc(pmesh*pmesh*sizeof(double));
+  a_x         =   (double *)malloc(MESHX*MESHX*sizeof(double));
+  a_y         =   (double *)malloc(MESHX*MESHX*sizeof(double));
+  rhs_fn      =   (double *)malloc(pmesh*pmesh*sizeof(double));
   v_old       =   (double *)malloc(MESHX*MESHX*sizeof(double));
   u_old       =   (double *)malloc(MESHX*MESHX*sizeof(double));
   v_now       =   (double *)malloc(MESHX*MESHX*sizeof(double));
   u_now       =   (double *)malloc(MESHX*MESHX*sizeof(double));
   v_str       =   (double *)malloc(MESHX*MESHX*sizeof(double));
   u_str       =   (double *)malloc(MESHX*MESHX*sizeof(double));
-  a_x         =   (double *)malloc(MESHX*MESHX*sizeof(double));
-  a_y         =   (double *)malloc(MESHX*MESHX*sizeof(double));
-  rhs_fn      =   (double *)malloc(pmesh*pmesh*sizeof(double));
   Hx          =   (double *)malloc(MESHX*MESHX*sizeof(double));
   Hy          =   (double *)malloc(MESHX*MESHX*sizeof(double));
 }

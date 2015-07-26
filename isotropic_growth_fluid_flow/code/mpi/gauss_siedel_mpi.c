@@ -25,6 +25,7 @@ double  compute_error_mpi(double *P, double *fn, int start, int end);
 void    mpiexchange(int taskid);
 void    sendtomaster(int taskid);
 void    receivefrmworker();
+void gs_allocate();
 // gs_mpi( double *P, double *fn ,double *a_x, double *a_y ){
 void gs_mpi() {
   if ( taskid == MASTER ) {
@@ -51,7 +52,12 @@ void gs_mpi() {
       MPI_Send(&right_node,           1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&P[offset*pmesh],      rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&rhs_fn[offset*pmesh], rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+      if((taskid ==1) || (taskid == numworkers)) {
+        MPI_Send(&a_x[],      rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+        MPI_Send(&a_y[],      rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+      }else{
 
+      }
       offset = offset + rows;
     }
     iter = 0;
@@ -91,8 +97,8 @@ void gs_mpi() {
 
     start = 1;
     if((taskid ==1) || (taskid == numworkers)) {
-      P            =   (double *)malloc((rows+1)*pmesh*sizeof(double));
-      rhs_fn       =   (double *)malloc((rows+1)*pmesh*sizeof(double));
+      // P            =   (double *)malloc((rows+1)*pmesh*sizeof(double));
+      // rhs_fn       =   (double *)malloc((rows+1)*pmesh*sizeof(double));
       if(taskid == 1) {
         MPI_Recv(&P[0],      rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
         MPI_Recv(&rhs_fn[0],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
@@ -103,8 +109,8 @@ void gs_mpi() {
       }
       end = rows-1;
     } else {
-      P            =   (double *)malloc((rows+2)*pmesh*sizeof(double));
-      rhs_fn           =   (double *)malloc((rows+2)*pmesh*sizeof(double));
+      // P            =   (double *)malloc((rows+2)*pmesh*sizeof(double));
+      // rhs_fn           =   (double *)malloc((rows+2)*pmesh*sizeof(double));
       MPI_Recv(&P[pmesh],          rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
       MPI_Recv(&rhs_fn[pmesh],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
       end = rows;
@@ -127,8 +133,8 @@ void gs_mpi() {
         break;
       }
     }
-    free(P);
-    free(rhs_fn);
+    // free(P);
+    // free(rhs_fn);
   }
 }
 void red_solver(double *P, double *fn, int start, int end){
@@ -276,6 +282,32 @@ void boundary_pressure_mpi(int taskid){
       indx_lft      = i*pmesh + pmesh - 1;
       P[indx_lft]   = p_left;
       P[indx_rght]  = p_right;
+    }
+  }
+}
+void gs_allocate(){
+  if ( taskid == MASTER ) {
+    averow    =   pmesh/numworkers;
+    extra     =   pmesh%numworkers;
+    for ( rank=1; rank <= (numworkers); rank++) {
+      rows         =   (rank <= extra) ? averow+1 : averow;
+      dest = rank;
+      MPI_Send(&rows,                 1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
+    }
+  }
+  if(taskid != MASTER) {
+    source =  MASTER;
+    MPI_Recv(&rows,          1,      MPI_INT,     source,    BEGIN,   MPI_COMM_WORLD,  &status);
+    if((taskid ==1) || (taskid == numworkers)) {
+      P            =   (double *)malloc((rows+1)*pmesh*sizeof(double));
+      rhs_fn       =   (double *)malloc((rows+1)*pmesh*sizeof(double));
+      a_x          =   (double *)malloc((rows-1)*(pmesh-1)*sizeof(double));
+      a_y          =   (double *)malloc((rows)*(pmesh-2)*sizeof(double));
+    } else {
+      P            =   (double *)malloc((rows+2)*pmesh*sizeof(double));
+      rhs_fn       =   (double *)malloc((rows+2)*pmesh*sizeof(double));
+      a_x          =   (double *)malloc((rows)*(pmesh-1)*sizeof(double));
+      a_y          =   (double *)malloc((rows+1)*(pmesh-2)*sizeof(double));
     }
   }
 }
