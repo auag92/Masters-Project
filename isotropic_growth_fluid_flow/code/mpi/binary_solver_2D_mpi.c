@@ -29,7 +29,7 @@ void write2file_fluid (int t, double *u, double *v, int M);
 void allocate_memory();
 void free_memory();
 void solverloop();
-
+//--------------------------------------------------------------
 void main(int argc, char *argv[]){
 
   MPI_Init(&argc,&argv);
@@ -37,7 +37,8 @@ void main(int argc, char *argv[]){
   numworkers = numtasks - 1;
   MPI_Comm_rank(MPI_COMM_WORLD,&taskid);
 
-  if(taskid == MASTER){
+  if(taskid == MASTER){ // This code fragment runs in the master porcesses
+
     allocate_memory();
     phi_initialize();
     fluid_initialize();
@@ -59,7 +60,6 @@ void main(int argc, char *argv[]){
 
       if (t>20) {
         fluid_solver();
-        printf("I am done with the fluid flow solver\n");
         if((t%save_fluid) ==0) {
              write2file_fluid (t,u_old,v_old,MESHX);
         }
@@ -67,8 +67,9 @@ void main(int argc, char *argv[]){
       printf("t=%d\n",t);
     }
     free_memory();
+  } else { // This code fragment runs in the worker processes
 
-    } else {
+
     for (t=0; t < phi_timesteps; t++) {
       if (t>20) {
         // gs_mpi(P, fn, a_x, a_y);

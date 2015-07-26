@@ -5,10 +5,7 @@
 #include "variables.h"
 //#include "mg_solver.c"
 #define ntimesteps 1
-#define phi_tol 0.5
-#define dirichlet_pressure
-#define LDC
-//#define PipeFlow
+
 
 void update(double *old, double *now,int M);
 void laplacian(double *f, double *lap, int M);
@@ -36,8 +33,8 @@ fluid_solver(){
   boundary_pressure();
   //multigrid(P, rhs_fn, a_x, a_y);
   //Gauss_siedel(P, rhs_fn, a_x, a_y);
-  // gs_mpi(P, rhs_fn, a_x, a_y);
   gs_mpi();
+  //gs_mpi();
   for(i=1; i<MESHX-1; i++){
     for(j=1; j<MESHX-1; j++){
 	    z = i*MESHX +j;

@@ -6,7 +6,6 @@
 #define WRITE 555
 #define ERROR 888
 #define BREAK 111
-
 //------------------------------------------------
 int numtasks, numworkers, taskid, rank, dest;
 int averow, extra, offset;
@@ -19,7 +18,6 @@ int flag = 0;
 double error, err;
 int iter = 0;
 //-------------------------------------------------
-
 void    boundary_pressure_mpi(int taskid);
 void    red_solver(double *P, double *fn, int start, int end);
 void    black_solver(double *P, double *fn, int start, int end);
@@ -27,17 +25,14 @@ double  compute_error_mpi(double *P, double *fn, int start, int end);
 void    mpiexchange(int taskid);
 void    sendtomaster(int taskid);
 void    receivefrmworker();
-
 // gs_mpi( double *P, double *fn ,double *a_x, double *a_y ){
 void gs_mpi() {
   if ( taskid == MASTER ) {
-    // printf("hello from the master\n" );
     averow    =   pmesh/numworkers;
     extra     =   pmesh%numworkers;
     offset    =   0;
     for ( rank=1; rank <= (numworkers); rank++) {
       rows         =   (rank <= extra) ? averow+1 : averow;
-      // printf("worker no. %d, rows  = %d, pmesh = %d\n", rank, rows, pmesh );
       left_node    =   rank - 1;
       right_node   =   rank + 1;
 
@@ -55,7 +50,7 @@ void gs_mpi() {
       MPI_Send(&left_node,            1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&right_node,           1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&P[offset*pmesh],      rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
-      MPI_Send(&rhs_fn[offset*pmesh],     rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+      MPI_Send(&rhs_fn[offset*pmesh], rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
 
       offset = offset + rows;
     }
@@ -68,8 +63,8 @@ void gs_mpi() {
         error  += err;
       }
       iter ++;
-      printf( "%d, %le \n", iter, error );
-      if ( error < 10.0e-6 ) {
+      printf( " %d, %le \n", iter, error );
+      if ( error < gs_tol ) {
         flag = 1;
       } else {
         flag = 0;
@@ -79,7 +74,7 @@ void gs_mpi() {
         dest = rank;
         MPI_Send (&flag,     1,     MPI_INT,    dest,   msgtype,  MPI_COMM_WORLD);
       }
-      if ( error < 10e-6 ) {
+      if ( error < gs_tol ) {
         receivefrmworker();
         break;
       }

@@ -19,8 +19,16 @@
 //-----------------------------------------
 
 #define radius2 100
-
 //---------------------------------------------
+//--------fluid States-------------------------
+//---------------------------------------------
+#define phi_tol 0.5
+#define dirichlet_pressure
+#define LDC
+//#define PipeFlow
+
+
+#ifdef PipeFlow
 #define inv_Re (1)
 #define Ue (0.0) // east wall velocity
 #define Uw (0.0) // west wall velocity
@@ -30,8 +38,28 @@
 #define Vw (0.0) // west wall velocity
 #define Vn (0.0) // north wall velocity
 #define Vs (0.0) // south wall velocity
-
+//---------------------------------------------
 #define p_up      (0)
 #define p_down    (0)
 #define p_left    (5)
 #define p_right   (0)
+#endif
+
+#ifdef LDC
+#define inv_Re (1)
+#define Ue (0.0) // east wall velocity
+#define Uw (0.0) // west wall velocity
+#define Un (3.0) // north wall velocity
+#define Us (0.0) // south wall velocity
+#define Ve (0.0) // east wall velocity
+#define Vw (0.0) // west wall velocity
+#define Vn (0.0) // north wall velocity
+#define Vs (0.0) // south wall velocity
+//----------------------------------------
+#define p_up      (0)
+#define p_down    (0)
+#define p_left    (0)
+#define p_right   (0)
+#endif
+//------------------------------------------
+#define gs_tol 10e-6
