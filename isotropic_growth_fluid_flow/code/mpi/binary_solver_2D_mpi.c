@@ -77,6 +77,8 @@ void main(int argc, char *argv[]){
     }
     free(P);
     free(rhs_fn);
+    free(a_x);
+    free(a_y);
   }
   MPI_Finalize();
 }
@@ -90,8 +92,8 @@ void allocate_memory() {
   lap_mu      =   (double *)malloc(MESHX*MESHX*sizeof(double));
   conc        =   (double *)malloc(MESHX*MESHX*sizeof(double));
   P           =   (double *)malloc(pmesh*pmesh*sizeof(double));
-  a_x         =   (double *)malloc(MESHX*MESHX*sizeof(double));
-  a_y         =   (double *)malloc(MESHX*MESHX*sizeof(double));
+  a_x         =   (double *)malloc((pmesh-2)*(pmesh-1)*sizeof(double));
+  a_y         =   (double *)malloc((pmesh-2)*(pmesh-1)*sizeof(double));
   rhs_fn      =   (double *)malloc(pmesh*pmesh*sizeof(double));
   v_old       =   (double *)malloc(MESHX*MESHX*sizeof(double));
   u_old       =   (double *)malloc(MESHX*MESHX*sizeof(double));
