@@ -7,6 +7,8 @@
 #include "gauss_siedel_mpi.c"
 #include "fluid_solver_mpi.c"
 
+int t;
+
 void phi_update();
 void phi_initialize();
 void neuman_boundary(double *c, int m);
@@ -46,13 +48,14 @@ void main(int argc, char *argv[]){
        write2file_phi(t, MESHX,phi_old);
       }
     #endif
-
+    #ifdef FLUID
       if (t>20) {
         fluid_solver();
         if((t%save_fluid) ==0) {
              write2file_fluid (t,u_old,v_old,MESHX);
         }
       }
+    #endif
       printf("t=%d\n",t);
     }
     free_memory();
@@ -81,7 +84,7 @@ void allocate_memory() {
   conc        =   (double *)malloc(MESHX*MESHX*sizeof(double));
   P           =   (double *)malloc(pmesh*pmesh*sizeof(double));
   a_x         =   (double *)malloc((pmesh-2)*(pmesh-1)*sizeof(double));
-  a_y         =   (double *)malloc((pmesh-2)*(pmesh-1)*sizeof(double));
+  a_y         =   (double *)malloc((pmesh-1)*(pmesh-2)*sizeof(double));
   rhs_fn      =   (double *)malloc(pmesh*pmesh*sizeof(double));
   v_old       =   (double *)malloc(MESHX*MESHX*sizeof(double));
   u_old       =   (double *)malloc(MESHX*MESHX*sizeof(double));

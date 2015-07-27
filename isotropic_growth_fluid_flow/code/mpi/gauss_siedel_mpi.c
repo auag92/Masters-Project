@@ -23,9 +23,9 @@ double error, err;
 int iter = 0;
 //-------------------------------------------------
 void    boundary_pressure_mpi(int taskid);
-void    red_solver(double *P, double *fn, int start, int end, int offset_ax, int offset_ay);
-void    black_solver(double *P, double *fn, int start, int end, int offset_ax, int offset_ay);
-double  compute_error_mpi(double *P, double *fn, int start, int end, int offset_ax, int offset_ay);
+void    red_solver(double *P, double *fn, double *a_x, double *a_y, int start, int end);
+void    black_solver(double *P, double *fn, double *a_x, double *a_y, int start, int end);
+double  compute_error_mpi(double *P, double *fn, double *a_x, double *a_y, int start, int end);
 void    mpiexchange(int taskid);
 void    sendtomaster(int taskid);
 void    receivefrmworker();
@@ -55,8 +55,8 @@ void gs_mpi() {
       MPI_Send(&right_node,           1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&P[offset*pmesh],      rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&rhs_fn[offset*pmesh], rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
-      MPI_Send(&a_x[0],               (pmesh-1)*(pmesh-2),  MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
-      MPI_Send(&a_y[0],               (pmesh-1)*(pmesh-2),  MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+      MPI_Send(&a_x[0],               (pmesh-1)*(pmesh-2),  MPI_DOUBLE,     dest,   BEGIN,  MPI_COMM_WORLD);
+      MPI_Send(&a_y[0],               (pmesh-1)*(pmesh-2),  MPI_DOUBLE,     dest,   BEGIN,  MPI_COMM_WORLD);
 
       offset = offset + rows;
     }
@@ -121,14 +121,13 @@ void gs_mpi() {
       offset_ay = offset - 1;
     }
 
-
     for (; ;) {
       //boundary_pressure_mpi(taskid);
       mpiexchange(taskid);
-      red_solver(P, rhs_fn, start, end, offset_ax, offset_ay);
+      red_solver(P, rhs_fn, &a_x[(offset_ax)*(pmesh-1)], &a_y[(offset_ay)*(pmesh-2)], start, end);
       mpiexchange(taskid);
-      black_solver(P, rhs_fn, start, end, offset_ax, offset_ay);
-      error = compute_error_mpi(P, rhs_fn, start, end, offset_ax, offset_ay);
+      black_solver(P, rhs_fn, &a_x[(offset_ax)*(pmesh-1)], &a_y[(offset_ay)*(pmesh-2)], start, end);
+      error = compute_error_mpi(P, rhs_fn, &a_x[(offset_ax)*(pmesh-1)], &a_y[(offset_ay)*(pmesh-2)], start, end);
 
       MPI_Send(&error,     1,     MPI_DOUBLE,    MASTER,   ERROR,  MPI_COMM_WORLD);
       MPI_Recv(&flag,      1,     MPI_INT,       MASTER,   BREAK,  MPI_COMM_WORLD,  &status);
@@ -140,7 +139,7 @@ void gs_mpi() {
     }
   }
 }
-void red_solver(double *P, double *fn, int start, int end, int offset_ax, int offset_ay){
+void red_solver(double *P, double *fn, double *a_x, double *a_y, int start, int end){
   int i, j, indx, indx_rght, indx_frnt, indx_lft, indx_bck, indx_ax, indx_ay;
   for(i=start; i <= end; i++) {
     for(j=1;j < pmesh-1;j++) {
@@ -149,8 +148,8 @@ void red_solver(double *P, double *fn, int start, int end, int offset_ax, int of
       indx_frnt    = indx         + pmesh;
       indx_lft     = indx         - 1;
       indx_bck     = indx         - pmesh;
-      indx_ax      = (i+offset_ax-1)*(pmesh-1)  +(j-1);
-      indx_ay      = (i+offset_ay-1)*(pmesh-2)  +(j-1);
+      indx_ax      = (i-1)*(pmesh-1)  +(j-1);
+      indx_ay      = (i-1)*(pmesh-2)  +(j-1);
       if (((i+j)%2) == 0) {
         #ifdef const_coeff
           P[indx]  = -1.0*(P[indx_lft] + P[indx_rght]
@@ -166,7 +165,7 @@ void red_solver(double *P, double *fn, int start, int end, int offset_ax, int of
     }
   }
 }
-void black_solver(double *P, double *fn, int start, int end, int offset_ax, int offset_ay){
+void black_solver(double *P, double *fn, double *a_x, double *a_y, int start, int end){
   int i, j, indx, indx_rght, indx_frnt, indx_lft, indx_bck, indx_ax, indx_ay;
   for(i=start; i <= end; i++) {
     for(j=1;j < pmesh-1;j++) {
@@ -175,8 +174,8 @@ void black_solver(double *P, double *fn, int start, int end, int offset_ax, int 
       indx_frnt    = indx         + pmesh;
       indx_lft     = indx         - 1;
       indx_bck     = indx         - pmesh;
-      indx_ax      = (i+offset_ax-1)*(pmesh-1)  + (j-1);
-      indx_ay      = (i+offset_ay-1)*(pmesh-2)  + (j-1);
+      indx_ax      = (i-1)*(pmesh-1)  + (j-1);
+      indx_ay      = (i-1)*(pmesh-2)  + (j-1);
       if (((i+j)%2) != 0) {
         #ifdef const_coeff
           P[indx]  = -1.0*(P[indx_lft] + P[indx_rght]
@@ -192,7 +191,7 @@ void black_solver(double *P, double *fn, int start, int end, int offset_ax, int 
     }
   }
 }
-double compute_error_mpi( double *P, double *fn, int start, int end, int offset_ax, int offset_ay ) {
+double compute_error_mpi( double *P, double *fn, double *a_x, double *a_y, int start, int end ) {
   double error=0.0;
   int indx, indx_rght, indx_frnt, indx_lft, indx_bck, i, j,indx_ax,indx_ay;
   for(i=start; i <= end; i++) {
@@ -202,8 +201,8 @@ double compute_error_mpi( double *P, double *fn, int start, int end, int offset_
       indx_rght         = indx      + 1;
       indx_lft          = indx      - 1;
       indx_bck          = indx      - pmesh;
-      indx_ax      = (i+offset_ax-1)*(pmesh-1)  + j-1;
-      indx_ay      = (i+offset_ay-1)*(pmesh-2)  + j-1;
+      indx_ax           = (i-1)*(pmesh-1)  + j-1;
+      indx_ay           = (i-1)*(pmesh-2)  + j-1;
       #ifdef const_coeff
         error += fabs(P[indx_lft] + P[indx_rght]
         + P[indx_bck] + P[indx_frnt] - (4.0)*P[indx] - deltax*deltax*fn[indx]);
@@ -314,6 +313,6 @@ void gs_allocate(){
       rhs_fn       =   (double *)malloc((rows+2)*pmesh*sizeof(double));
     }
     a_x          =   (double *)malloc((pmesh-1)*(pmesh-2)*sizeof(double));
-    a_y          =   (double *)malloc((pmesh-1)*(pmesh-2)*sizeof(double));
+    a_y          =   (double *)malloc((pmesh-2)*(pmesh-1)*sizeof(double));
   }
 }

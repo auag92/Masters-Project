@@ -18,12 +18,12 @@
 #define Mu (1.0)     //  chemical potential
 //-----------------------------------------
 //------------------------------------------------------------
-int t;
+#define FLUID
 //-------Phi Init Profiles-------------------------------------
-//#define growth
-//#define Centre
-//#define Corner
-#define Nothing
+#define growth
+#define Centre
+// #define Corner
+ // #define Nothing
 //--------------------------------------------------------------
 #define save_phi (10)
 #define save_fluid (10)

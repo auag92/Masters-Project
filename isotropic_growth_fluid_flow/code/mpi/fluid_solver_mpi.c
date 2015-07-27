@@ -59,6 +59,7 @@ fluid_solver(){
 void LHS_fn(){
   int i,j,x,m,x1,x2,y,y1,y2,z,z1,z2,c,d1,d2,t;
   int phi_indx,a_indx;
+
   t = pmesh-1;
   for (i=0;i<t-1;i++){
     for (j=0;j<t;j++){
