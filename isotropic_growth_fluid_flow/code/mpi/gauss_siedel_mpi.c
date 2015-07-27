@@ -8,9 +8,10 @@
 #define BREAK 111
 //------------------------------------------------
 int numtasks, numworkers, taskid, rank, dest;
-int averow, extra, offset, offset_x, offset_y;
+int averow, extra, offset;
 int left_node, right_node;
 int start, end;
+int strt_ax, strt_ay;
 int source, msgtype;
 int rows;
 MPI_Status status;
@@ -32,8 +33,6 @@ void gs_mpi() {
     averow    =   pmesh/numworkers;
     extra     =   pmesh%numworkers;
     offset    =   0;
-    offset_x  =   0;
-    offset_y  =   0;
     for ( rank=1; rank <= (numworkers); rank++) {
       rows         =   (rank <= extra) ? averow+1 : averow;
       left_node    =   rank - 1;
@@ -54,17 +53,9 @@ void gs_mpi() {
       MPI_Send(&right_node,           1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&P[offset*pmesh],      rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&rhs_fn[offset*pmesh], rows*pmesh,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
-      // if((taskid ==1) || (taskid == numworkers)) {
-      //   MPI_Send(&a_x[offset_x],      (rows-1)*(pmesh-1),          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
-      //   offset_x += rows -1;
-      //   MPI_Send(&a_y[offset_y],      (rows)*(pmesh-2),          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
-      //   offset_y += rows-1;
-      // } else {
-      //   MPI_Send(&a_x[offset_x],      (rows)*(pmesh-1),          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
-      //   offset_x += rows;
-      //   MPI_Send(&a_y[offset_y],      (rows+1)*(pmesh-2),          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
-      //   offset_y += rows-1;
-      // }
+      MPI_Send(&a_x[0],               (pmesh-1)*(pmesh-2),  MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+      MPI_Send(&a_y[0],               (pmesh-1)*(pmesh-2),  MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+
       offset = offset + rows;
     }
 
@@ -93,10 +84,9 @@ void gs_mpi() {
         break;
       }
     }
-    printf("I have finished my iterations\n");
+    // printf("I have finished my iterations\n");
   }
   if (taskid != MASTER) {
-    // printf("hello world from worker no. %d\n", taskid);
     source =  MASTER;
     MPI_Recv(&offset,        1,      MPI_INT,     source,    BEGIN,   MPI_COMM_WORLD,  &status);
     MPI_Recv(&rows,          1,      MPI_INT,     source,    BEGIN,   MPI_COMM_WORLD,  &status);
@@ -111,8 +101,6 @@ void gs_mpi() {
 
     start = 1;
     if((taskid ==1) || (taskid == numworkers)) {
-      // P            =   (double *)malloc((rows+1)*pmesh*sizeof(double));
-      // rhs_fn       =   (double *)malloc((rows+1)*pmesh*sizeof(double));
       if(taskid == 1) {
         MPI_Recv(&P[0],      rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
         MPI_Recv(&rhs_fn[0],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
@@ -121,24 +109,26 @@ void gs_mpi() {
         MPI_Recv(&P[pmesh],      rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
         MPI_Recv(&rhs_fn[pmesh],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
       }
-      // MPI_Recv(&a_x[0],      (rows-1)*(pmesh-1),        MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-      // MPI_Recv(&a_y[0],      (rows)*(pmesh-2),          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
       end = rows-1;
     } else {
-      // P            =   (double *)malloc((rows+2)*pmesh*sizeof(double));
-      // rhs_fn           =   (double *)malloc((rows+2)*pmesh*sizeof(double));
       MPI_Recv(&P[pmesh],          rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
       MPI_Recv(&rhs_fn[pmesh],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-      // MPI_Recv(&a_x[0],      (rows)*(pmesh-1),          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-      // MPI_Recv(&a_y[0],      (rows+1)*(pmesh-2),        MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
       end = rows;
+    }
+    MPI_Recv(&a_x[0],        (pmesh-1)*(pmesh-2),   MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD, &status);
+    MPI_Recv(&a_y[0],        (pmesh-1)*(pmesh-2),   MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD, &status);
+    if (taskid == 1){
+      strt_ay = 0;
+      strt_ax = 0;
+    }else{
+      strt_ay = offset - 1;
+      strt_ay = offset - 1;
     }
 
 
     for (; ;) {
       //boundary_pressure_mpi(taskid);
       mpiexchange(taskid);
-      // printf("I have recieved my share of work from master: %d\n", taskid);
       red_solver(P, rhs_fn, start, end);
       mpiexchange(taskid);
       black_solver(P, rhs_fn, start, end);
@@ -165,19 +155,19 @@ void red_solver(double *P, double *fn, int start, int end){
       indx_frnt    = indx         + pmesh;
       indx_lft     = indx         - 1;
       indx_bck     = indx         - pmesh;
-      indx_ax      = (i-1)*(pmesh-1)  +(j-1);
-      indx_ay      = (i-1)*(pmesh-2)  +(j-1);
+      indx_ax      = (i+strt_ax-1)*(pmesh-1)  +(j-1);
+      indx_ay      = (i+strt_ay-1)*(pmesh-2)  +(j-1);
 
-      if (((i+j)%2) == 0) {
-        P[indx]  = -1.0*(P[indx_lft] + P[indx_rght]
-        + P[indx_bck] + P[indx_frnt]) + deltax*deltax*fn[indx];
-        P[indx] /= -1.0*4.0;
-      }
       // if (((i+j)%2) == 0) {
-      //   P[indx]  = -1.0*(a_x[indx_ax]*P[indx_lft] + a_x[indx_ax+1]*P[indx_rght]
-      //   + a_y[indx_ay]*P[indx_bck] + a_y[indx_ay+(pmesh-2)]*P[indx_frnt]) + deltax*deltax*fn[indx];
-      //   P[indx] /= -1.0*(a_x[indx_ax+1]+a_x[indx_ax]+a_y[indx_ay+(pmesh-2)]+a_y[indx_ay]);
+      //   P[indx]  = -1.0*(P[indx_lft] + P[indx_rght]
+      //   + P[indx_bck] + P[indx_frnt]) + deltax*deltax*fn[indx];
+      //   P[indx] /= -1.0*4.0;
       // }
+      if (((i+j)%2) == 0) {
+        P[indx]  = -1.0*(a_x[indx_ax]*P[indx_lft] + a_x[indx_ax+1]*P[indx_rght]
+        + a_y[indx_ay]*P[indx_bck] + a_y[indx_ay+(pmesh-2)]*P[indx_frnt]) + deltax*deltax*fn[indx];
+        P[indx] /= -1.0*(a_x[indx_ax+1]+a_x[indx_ax]+a_y[indx_ay+(pmesh-2)]+a_y[indx_ay]);
+      }
     }
   }
 }
@@ -190,19 +180,19 @@ void black_solver(double *P, double *fn, int start, int end){
       indx_frnt    = indx         + pmesh;
       indx_lft     = indx         - 1;
       indx_bck     = indx         - pmesh;
-      indx_ax      = (i-1)*(pmesh-1)  + (j-1);
-      indx_ay      = (i-1)*(pmesh-2)  + (j-1);
-      if (((i+j)%2) != 0) {
-        P[indx]  = -1.0*(P[indx_lft] + P[indx_rght]
-        + P[indx_bck] + P[indx_frnt]) + deltax*deltax*fn[indx];
-        P[indx] /= -1.0*4.0;
-      }
-
+      indx_ax      = (i+strt_ax-1)*(pmesh-1)  + (j-1);
+      indx_ay      = (i+strt_ay-1)*(pmesh-2)  + (j-1);
       // if (((i+j)%2) != 0) {
-      //   P[indx]  =-1.0*(a_x[indx_ax]*P[indx_lft] + a_x[indx_ax+1]*P[indx_rght]
-      //   + a_y[indx_ay]*P[indx_bck] + a_y[indx_ay+(pmesh-2)]*P[indx_frnt]) + deltax*deltax*fn[indx];
-      //   P[indx] /= -1.0*(a_x[indx_ax]+a_x[indx_ax+1]+a_y[indx_ay]+a_y[indx_ay+(pmesh-2)]);
+      //   P[indx]  = -1.0*(P[indx_lft] + P[indx_rght]
+      //   + P[indx_bck] + P[indx_frnt]) + deltax*deltax*fn[indx];
+      //   P[indx] /= -1.0*4.0;
       // }
+
+      if (((i+j)%2) != 0) {
+        P[indx]  =-1.0*(a_x[indx_ax]*P[indx_lft] + a_x[indx_ax+1]*P[indx_rght]
+        + a_y[indx_ay]*P[indx_bck] + a_y[indx_ay+(pmesh-2)]*P[indx_frnt]) + deltax*deltax*fn[indx];
+        P[indx] /= -1.0*(a_x[indx_ax]+a_x[indx_ax+1]+a_y[indx_ay]+a_y[indx_ay+(pmesh-2)]);
+      }
     }
   }
 }
@@ -216,15 +206,15 @@ double compute_error_mpi(double *P, double *fn, int start, int end ) {
       indx_rght         = indx      + 1;
       indx_lft          = indx      - 1;
       indx_bck          = indx      - pmesh;
-      indx_ax      = (i-1)*(pmesh-1)  + j-1;
-      indx_ay      = (i-1)*(pmesh-2)  + j-1;
+      indx_ax      = (i+strt_ax-1)*(pmesh-1)  + j-1;
+      indx_ay      = (i+strt_ay-1)*(pmesh-2)  + j-1;
 
-      error += fabs(P[indx_lft] + P[indx_rght]
-      + P[indx_bck] + P[indx_frnt] - (4.0)*P[indx] - deltax*deltax*fn[indx]);
-      // error += fabs(a_x[indx_ax]*P[indx_lft] + a_x[indx_ax+1]*P[indx_rght]
-      // + a_y[indx_ay]*P[indx_bck] + a_y[indx_ay+(pmesh-2)]*P[indx_frnt]
-      // - (a_x[indx_ax]+a_x[indx_ax+1]+a_y[indx_ay]+a_y[indx_ay+(pmesh-2)])*P[indx]
-      // - deltax*deltax*fn[indx]);
+      // error += fabs(P[indx_lft] + P[indx_rght]
+      // + P[indx_bck] + P[indx_frnt] - (4.0)*P[indx] - deltax*deltax*fn[indx]);
+      error += fabs(a_x[indx_ax]*P[indx_lft] + a_x[indx_ax+1]*P[indx_rght]
+      + a_y[indx_ay]*P[indx_bck] + a_y[indx_ay+(pmesh-2)]*P[indx_frnt]
+      - (a_x[indx_ax]+a_x[indx_ax+1]+a_y[indx_ay]+a_y[indx_ay+(pmesh-2)])*P[indx]
+      - deltax*deltax*fn[indx]);
     }
   }
   return(error);
@@ -320,13 +310,11 @@ void gs_allocate(){
     if((taskid ==1) || (taskid == numworkers)) {
       P            =   (double *)malloc((rows+1)*pmesh*sizeof(double));
       rhs_fn       =   (double *)malloc((rows+1)*pmesh*sizeof(double));
-      a_x          =   (double *)malloc((rows-1)*(pmesh-1)*sizeof(double));
-      a_y          =   (double *)malloc((rows)*(pmesh-2)*sizeof(double));
     } else {
       P            =   (double *)malloc((rows+2)*pmesh*sizeof(double));
       rhs_fn       =   (double *)malloc((rows+2)*pmesh*sizeof(double));
-      a_x          =   (double *)malloc((rows)*(pmesh-1)*sizeof(double));
-      a_y          =   (double *)malloc((rows+1)*(pmesh-2)*sizeof(double));
     }
+    a_x          =   (double *)malloc((pmesh-1)*(pmesh-2)*sizeof(double));
+    a_y          =   (double *)malloc((pmesh-1)*(pmesh-2)*sizeof(double));
   }
 }
