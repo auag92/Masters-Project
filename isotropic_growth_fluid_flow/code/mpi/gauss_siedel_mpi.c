@@ -151,7 +151,6 @@ void red_solver(double *P, double *fn, int start, int end, int offset_ax, int of
       indx_bck     = indx         - pmesh;
       indx_ax      = (i+offset_ax-1)*(pmesh-1)  +(j-1);
       indx_ay      = (i+offset_ay-1)*(pmesh-2)  +(j-1);
-
       if (((i+j)%2) == 0) {
         #ifdef const_coeff
           P[indx]  = -1.0*(P[indx_lft] + P[indx_rght]
@@ -164,7 +163,6 @@ void red_solver(double *P, double *fn, int start, int end, int offset_ax, int of
           P[indx] /= -1.0*(a_x[indx_ax+1]+a_x[indx_ax]+a_y[indx_ay+(pmesh-2)]+a_y[indx_ay]);
         #endif
       }
-
     }
   }
 }
@@ -179,12 +177,6 @@ void black_solver(double *P, double *fn, int start, int end, int offset_ax, int 
       indx_bck     = indx         - pmesh;
       indx_ax      = (i+offset_ax-1)*(pmesh-1)  + (j-1);
       indx_ay      = (i+offset_ay-1)*(pmesh-2)  + (j-1);
-      // if (((i+j)%2) != 0) {
-      //   P[indx]  = -1.0*(P[indx_lft] + P[indx_rght]
-      //   + P[indx_bck] + P[indx_frnt]) + deltax*deltax*fn[indx];
-      //   P[indx] /= -1.0*4.0;
-      // }
-
       if (((i+j)%2) != 0) {
         #ifdef const_coeff
           P[indx]  = -1.0*(P[indx_lft] + P[indx_rght]
@@ -261,7 +253,7 @@ void mpiexchange(int taskid) {
     MPI_Send(&P[start*pmesh],      pmesh, MPI_DOUBLE,   left_node,   RTAG,     MPI_COMM_WORLD);
     source  = left_node;
     msgtype = LTAG;
-    // MPI_Recv(&P[0],                pmesh, MPI_DOUBLE,   source,     msgtype,   MPI_COMM_WORLD, &status);
+    MPI_Recv(&P[0],                pmesh, MPI_DOUBLE,   source,     msgtype,   MPI_COMM_WORLD, &status);
   } else {
     if (taskid != 1) {
        source  = left_node;
@@ -273,7 +265,7 @@ void mpiexchange(int taskid) {
       source  = right_node;
       msgtype = RTAG;
       MPI_Recv(&P[(end+1)*pmesh],  pmesh, MPI_DOUBLE, source,      msgtype,  MPI_COMM_WORLD, &status);
-      // MPI_Send(&P[(end)*pmesh],    pmesh, MPI_DOUBLE, right_node,  LTAG,     MPI_COMM_WORLD);
+      MPI_Send(&P[(end)*pmesh],    pmesh, MPI_DOUBLE, right_node,  LTAG,     MPI_COMM_WORLD);
     }
   }
 }
