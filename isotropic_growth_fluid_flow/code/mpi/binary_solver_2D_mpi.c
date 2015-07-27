@@ -7,18 +7,6 @@
 #include "gauss_siedel_mpi.c"
 #include "fluid_solver_mpi.c"
 
-//------------------------------------------------------------
-int t;
-//-------------------------------------------------------------
-//#define growth
-//#define Centre
-//#define Corner
-#define Nothing
-//--------------------------------------------------------------
-#define save_phi (10)
-#define save_fluid (10)
-#define phi_timesteps (10000)
-//--------------------------------------------------------------
 void phi_update();
 void phi_initialize();
 void neuman_boundary(double *c, int m);
@@ -245,7 +233,7 @@ void write2file_phi ( int t, int m,double *phi) {
   FILE *fp;
   char filename[1000];
 
-  sprintf(filename,"./datafiles/phi_%d.dat",t);
+  sprintf(filename,"./datafiles_1.0.0/phi_%d.dat",t);
   fp = fopen(filename,"w");
   for ( i = 0; i < m; i++)
   {
@@ -288,7 +276,7 @@ void write2file_fluid (int t, double *u, double *v, int M) {
   int i,j,z;
   FILE *fp1, *fp2, *fp3, *fp4;
   char fname1[1000],fname2[1000],fname3[1000], fname4[1000];
-  sprintf(fname4,"./datafiles/velocity_%d.dat",t);
+  sprintf(fname4,"./datafiles_1.0.0/velocity_%d.dat",t);
   fp4 = fopen(fname4,"w");
 
   for ( i = 0; i < M; i++)

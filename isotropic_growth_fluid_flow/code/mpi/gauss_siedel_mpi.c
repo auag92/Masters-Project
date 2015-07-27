@@ -7,11 +7,14 @@
 #define ERROR 888
 #define BREAK 111
 //------------------------------------------------
+
+#define var_coeff
+// #define const_coeff
 int numtasks, numworkers, taskid, rank, dest;
 int averow, extra, offset;
 int left_node, right_node;
 int start, end;
-int strt_ax, strt_ay;
+int offset_ax, offset_ay;
 int source, msgtype;
 int rows;
 MPI_Status status;
@@ -20,14 +23,13 @@ double error, err;
 int iter = 0;
 //-------------------------------------------------
 void    boundary_pressure_mpi(int taskid);
-void    red_solver(double *P, double *fn, int start, int end);
-void    black_solver(double *P, double *fn, int start, int end);
-double  compute_error_mpi(double *P, double *fn, int start, int end);
+void    red_solver(double *P, double *fn, int start, int end, int offset_ax, int offset_ay);
+void    black_solver(double *P, double *fn, int start, int end, int offset_ax, int offset_ay);
+double  compute_error_mpi(double *P, double *fn, int start, int end, int offset_ax, int offset_ay);
 void    mpiexchange(int taskid);
 void    sendtomaster(int taskid);
 void    receivefrmworker();
 void gs_allocate();
-// gs_mpi( double *P, double *fn ,double *a_x, double *a_y ){
 void gs_mpi() {
   if ( taskid == MASTER ) {
     averow    =   pmesh/numworkers;
@@ -93,12 +95,6 @@ void gs_mpi() {
     MPI_Recv(&left_node,     1,      MPI_INT,     source,    BEGIN,   MPI_COMM_WORLD,  &status);
     MPI_Recv(&right_node,    1,      MPI_INT,     source,    BEGIN,   MPI_COMM_WORLD,  &status);
 
-    if((taskid ==1) || (taskid == numworkers)) {
-
-    } else {
-
-    }
-
     start = 1;
     if((taskid ==1) || (taskid == numworkers)) {
       if(taskid == 1) {
@@ -115,24 +111,24 @@ void gs_mpi() {
       MPI_Recv(&rhs_fn[pmesh],     rows*pmesh,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
       end = rows;
     }
-    MPI_Recv(&a_x[0],        (pmesh-1)*(pmesh-2),   MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD, &status);
-    MPI_Recv(&a_y[0],        (pmesh-1)*(pmesh-2),   MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD, &status);
+    MPI_Recv(&a_x[0],        (pmesh-1)*(pmesh-2),   MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
+    MPI_Recv(&a_y[0],        (pmesh-1)*(pmesh-2),   MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
     if (taskid == 1){
-      strt_ay = 0;
-      strt_ax = 0;
+      offset_ay = 0;
+      offset_ax = 0;
     }else{
-      strt_ay = offset - 1;
-      strt_ay = offset - 1;
+      offset_ax = offset - 1;
+      offset_ay = offset - 1;
     }
 
 
     for (; ;) {
       //boundary_pressure_mpi(taskid);
       mpiexchange(taskid);
-      red_solver(P, rhs_fn, start, end);
+      red_solver(P, rhs_fn, start, end, offset_ax, offset_ay);
       mpiexchange(taskid);
-      black_solver(P, rhs_fn, start, end);
-      error = compute_error_mpi(P, rhs_fn, start, end);
+      black_solver(P, rhs_fn, start, end, offset_ax, offset_ay);
+      error = compute_error_mpi(P, rhs_fn, start, end, offset_ax, offset_ay);
 
       MPI_Send(&error,     1,     MPI_DOUBLE,    MASTER,   ERROR,  MPI_COMM_WORLD);
       MPI_Recv(&flag,      1,     MPI_INT,       MASTER,   BREAK,  MPI_COMM_WORLD,  &status);
@@ -142,11 +138,9 @@ void gs_mpi() {
         break;
       }
     }
-    // free(P);
-    // free(rhs_fn);
   }
 }
-void red_solver(double *P, double *fn, int start, int end){
+void red_solver(double *P, double *fn, int start, int end, int offset_ax, int offset_ay){
   int i, j, indx, indx_rght, indx_frnt, indx_lft, indx_bck, indx_ax, indx_ay;
   for(i=start; i <= end; i++) {
     for(j=1;j < pmesh-1;j++) {
@@ -155,23 +149,26 @@ void red_solver(double *P, double *fn, int start, int end){
       indx_frnt    = indx         + pmesh;
       indx_lft     = indx         - 1;
       indx_bck     = indx         - pmesh;
-      indx_ax      = (i+strt_ax-1)*(pmesh-1)  +(j-1);
-      indx_ay      = (i+strt_ay-1)*(pmesh-2)  +(j-1);
+      indx_ax      = (i+offset_ax-1)*(pmesh-1)  +(j-1);
+      indx_ay      = (i+offset_ay-1)*(pmesh-2)  +(j-1);
 
-      // if (((i+j)%2) == 0) {
-      //   P[indx]  = -1.0*(P[indx_lft] + P[indx_rght]
-      //   + P[indx_bck] + P[indx_frnt]) + deltax*deltax*fn[indx];
-      //   P[indx] /= -1.0*4.0;
-      // }
       if (((i+j)%2) == 0) {
-        P[indx]  = -1.0*(a_x[indx_ax]*P[indx_lft] + a_x[indx_ax+1]*P[indx_rght]
-        + a_y[indx_ay]*P[indx_bck] + a_y[indx_ay+(pmesh-2)]*P[indx_frnt]) + deltax*deltax*fn[indx];
-        P[indx] /= -1.0*(a_x[indx_ax+1]+a_x[indx_ax]+a_y[indx_ay+(pmesh-2)]+a_y[indx_ay]);
+        #ifdef const_coeff
+          P[indx]  = -1.0*(P[indx_lft] + P[indx_rght]
+          + P[indx_bck] + P[indx_frnt]) + deltax*deltax*fn[indx];
+          P[indx] /= -1.0*4.0;
+        #endif
+        #ifdef var_coeff
+          P[indx]  = -1.0*(a_x[indx_ax]*P[indx_lft] + a_x[indx_ax+1]*P[indx_rght]
+          + a_y[indx_ay]*P[indx_bck] + a_y[indx_ay+(pmesh-2)]*P[indx_frnt]) + deltax*deltax*fn[indx];
+          P[indx] /= -1.0*(a_x[indx_ax+1]+a_x[indx_ax]+a_y[indx_ay+(pmesh-2)]+a_y[indx_ay]);
+        #endif
       }
+
     }
   }
 }
-void black_solver(double *P, double *fn, int start, int end){
+void black_solver(double *P, double *fn, int start, int end, int offset_ax, int offset_ay){
   int i, j, indx, indx_rght, indx_frnt, indx_lft, indx_bck, indx_ax, indx_ay;
   for(i=start; i <= end; i++) {
     for(j=1;j < pmesh-1;j++) {
@@ -180,8 +177,8 @@ void black_solver(double *P, double *fn, int start, int end){
       indx_frnt    = indx         + pmesh;
       indx_lft     = indx         - 1;
       indx_bck     = indx         - pmesh;
-      indx_ax      = (i+strt_ax-1)*(pmesh-1)  + (j-1);
-      indx_ay      = (i+strt_ay-1)*(pmesh-2)  + (j-1);
+      indx_ax      = (i+offset_ax-1)*(pmesh-1)  + (j-1);
+      indx_ay      = (i+offset_ay-1)*(pmesh-2)  + (j-1);
       // if (((i+j)%2) != 0) {
       //   P[indx]  = -1.0*(P[indx_lft] + P[indx_rght]
       //   + P[indx_bck] + P[indx_frnt]) + deltax*deltax*fn[indx];
@@ -189,14 +186,21 @@ void black_solver(double *P, double *fn, int start, int end){
       // }
 
       if (((i+j)%2) != 0) {
-        P[indx]  =-1.0*(a_x[indx_ax]*P[indx_lft] + a_x[indx_ax+1]*P[indx_rght]
-        + a_y[indx_ay]*P[indx_bck] + a_y[indx_ay+(pmesh-2)]*P[indx_frnt]) + deltax*deltax*fn[indx];
-        P[indx] /= -1.0*(a_x[indx_ax]+a_x[indx_ax+1]+a_y[indx_ay]+a_y[indx_ay+(pmesh-2)]);
+        #ifdef const_coeff
+          P[indx]  = -1.0*(P[indx_lft] + P[indx_rght]
+          + P[indx_bck] + P[indx_frnt]) + deltax*deltax*fn[indx];
+          P[indx] /= -1.0*4.0;
+        #endif
+        #ifdef var_coeff
+          P[indx]  = -1.0*(a_x[indx_ax]*P[indx_lft] + a_x[indx_ax+1]*P[indx_rght]
+          + a_y[indx_ay]*P[indx_bck] + a_y[indx_ay+(pmesh-2)]*P[indx_frnt]) + deltax*deltax*fn[indx];
+          P[indx] /= -1.0*(a_x[indx_ax+1]+a_x[indx_ax]+a_y[indx_ay+(pmesh-2)]+a_y[indx_ay]);
+        #endif
       }
     }
   }
 }
-double compute_error_mpi(double *P, double *fn, int start, int end ) {
+double compute_error_mpi( double *P, double *fn, int start, int end, int offset_ax, int offset_ay ) {
   double error=0.0;
   int indx, indx_rght, indx_frnt, indx_lft, indx_bck, i, j,indx_ax,indx_ay;
   for(i=start; i <= end; i++) {
@@ -206,15 +210,18 @@ double compute_error_mpi(double *P, double *fn, int start, int end ) {
       indx_rght         = indx      + 1;
       indx_lft          = indx      - 1;
       indx_bck          = indx      - pmesh;
-      indx_ax      = (i+strt_ax-1)*(pmesh-1)  + j-1;
-      indx_ay      = (i+strt_ay-1)*(pmesh-2)  + j-1;
-
-      // error += fabs(P[indx_lft] + P[indx_rght]
-      // + P[indx_bck] + P[indx_frnt] - (4.0)*P[indx] - deltax*deltax*fn[indx]);
-      error += fabs(a_x[indx_ax]*P[indx_lft] + a_x[indx_ax+1]*P[indx_rght]
-      + a_y[indx_ay]*P[indx_bck] + a_y[indx_ay+(pmesh-2)]*P[indx_frnt]
-      - (a_x[indx_ax]+a_x[indx_ax+1]+a_y[indx_ay]+a_y[indx_ay+(pmesh-2)])*P[indx]
-      - deltax*deltax*fn[indx]);
+      indx_ax      = (i+offset_ax-1)*(pmesh-1)  + j-1;
+      indx_ay      = (i+offset_ay-1)*(pmesh-2)  + j-1;
+      #ifdef const_coeff
+        error += fabs(P[indx_lft] + P[indx_rght]
+        + P[indx_bck] + P[indx_frnt] - (4.0)*P[indx] - deltax*deltax*fn[indx]);
+      #endif
+      #ifdef var_coeff
+        error += fabs(a_x[indx_ax]*P[indx_lft] + a_x[indx_ax+1]*P[indx_rght]
+        + a_y[indx_ay]*P[indx_bck] + a_y[indx_ay+(pmesh-2)]*P[indx_frnt]
+        - (a_x[indx_ax]+a_x[indx_ax+1]+a_y[indx_ay]+a_y[indx_ay+(pmesh-2)])*P[indx]
+        - deltax*deltax*fn[indx]);
+      #endif
     }
   }
   return(error);

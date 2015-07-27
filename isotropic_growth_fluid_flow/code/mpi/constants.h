@@ -17,16 +17,28 @@
 #define deltaMu (0.4) //
 #define Mu (1.0)     //  chemical potential
 //-----------------------------------------
-
+//------------------------------------------------------------
+int t;
+//-------Phi Init Profiles-------------------------------------
+//#define growth
+//#define Centre
+//#define Corner
+#define Nothing
+//--------------------------------------------------------------
+#define save_phi (10)
+#define save_fluid (10)
+#define phi_timesteps (10000)
+//--------------------------------------------------------------
 #define radius2 100
 //---------------------------------------------
 //--------fluid States-------------------------
 //---------------------------------------------
 #define phi_tol 0.5
 #define dirichlet_pressure
-#define LDC
-//#define PipeFlow
+// #define LDC
+#define PipeFlow
 
+#define gs_tol 10e-6
 
 #ifdef PipeFlow
 #define inv_Re (1)
@@ -62,4 +74,3 @@
 #define p_right   (0)
 #endif
 //------------------------------------------
-#define gs_tol 10e-6
