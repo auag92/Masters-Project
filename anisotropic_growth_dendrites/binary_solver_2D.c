@@ -2,12 +2,13 @@
 #include "math.h"
 #include "stdlib.h"
 
-#define MESHX 600
+#define MESHX 100
 #define MESHX2 (MESHX*MESHX)
 #define deltat (0.02)
 #define deltax (1)
 #define deltax2 (deltax*deltax)
 
+#define RADIUS2 100
 #define K (0.5)             /*Partition Coefficient*/
 #define G (1.0)             /*Surface Energy*/
 #define M (1.0)             /*Mobility*/
@@ -16,7 +17,7 @@
 #define Dab (0.06)
 
 #define ntimesteps (100000)
-#define saveT (5000)
+#define saveT (100)
 #define deltaMu (0.4)
 #define Mu (1.0)
 
@@ -25,39 +26,31 @@
 #define CONSTANT_X_1 (0.5)
 #define NEUMANN
 
-// #define PERIODIC
-// #define SINE_PROFILE
-#ifdef SINE_PROFILE
-#define wavenumber 4
-#define amp 0.1
-#endif
 #define STEP_PROFILE
 
 //#define isotropy
 #define anisotropy
-double phi_new[MESHX2], phi_old[MESHX2];
-double mu_new[MESHX2], mu_old[MESHX2];
-double lap_phi[MESHX2], lap_mu[MESHX2];
-double conc[MESHX2];
-double dphi_now[4*MESHX], dphi_next[4*MESHX];
-double inv_deltax2 = (1.0/deltax2);
-double inv_deltax = (1.0/deltax);
+double    phi_new[MESHX2], phi_old[MESHX2];
+double    mu_new[MESHX2], mu_old[MESHX2];
+double    lap_phi[MESHX2], lap_mu[MESHX2];
+double    conc[MESHX2];
+double    dphi_now[4*MESHX], dphi_next[4*MESHX];
+double    inv_deltax2 = (1.0/deltax2);
+double    inv_deltax = (1.0/deltax);
 
-void initialize();
-void boundary(double *c);
-void write2file ( long t);
-void update();
-void laplacian(double *f, double *lap);
-void concentration();
-void fnupdate();
-void grad_phi(long i, double *d_phi);
-double div_phi(long i);
+void      initialize();
+void      boundary(double *c);
+void      write2file ( long t);
+void      update();
+void      laplacian(double *f, double *lap);
+void      concentration();
+void      fnupdate();
+void      grad_phi(long i, double *d_phi);
+double    div_phi(long i);
+void anisotropic_solverloop();
 
 void main() {
-  long i, j, z, t;
-  double p,dp,du;
-  double drv_frce, alln_chn;
-  double Gamma;
+  long t;
   initialize();
   boundary(phi_old);
   boundary(mu_old);
@@ -66,26 +59,7 @@ void main() {
 
     laplacian(phi_old, lap_phi);
     laplacian(mu_old, lap_mu);
-    grad_phi(1, dphi_now);
-
-    for (i=1; i < (MESHX-1); i++) {
-      grad_phi(i+1, dphi_next);
-      for (j=1; j < (MESHX-1); j++){
-
-        z= i*MESHX + j;
-        p = phi_old[z];
-        //Gamma = 2*G*lap_phi[z];
-        Gamma = div_phi(j);
-        drv_frce = (mu_old[z] - Mu)*(K-1)*(mu_old[z])*6*p*(1-p);
-        alln_chn = E*Gamma - (G/E)*18.0*(p)*(1.0-p)*(1.0-2.0*p);
-        dp = deltat*(alln_chn + drv_frce)/(tau*E);
-        phi_new[z] = p + dp;
-        du = deltat*M*lap_mu[z] - (K-1)*mu_old[z]*6*p*(1-p)*dp;
-        mu_new[z] = mu_old[z]  + du/(1+(K-1)*p*p*(3-2*p));
-      }
-      fnupdate();
-    }
-
+    anisotropic_solverloop();
     boundary(phi_new);
     boundary(mu_new);
     //concentration();
@@ -140,9 +114,9 @@ void initialize() {
   {
     for ( j=0; j < MESHX; j++)
     {
-      r= (i-300)*(i-300) + (j-300)*(j-300);
+      r= (i-MESHX/2)*(i-MESHX/2) + (j-MESHX/2)*(j-MESHX/2);
       z= i*MESHX + j;
-      if(r < 2500.0){
+      if(r < RADIUS2){
         phi_old[z] = 1.0;
       }
       else{
@@ -246,7 +220,7 @@ void write2file (long t) {
   int i,j,z;
   FILE *fp;
   char filename[1000];
-  sprintf(filename,"./datafiles3/phi_%ld.dat",t);
+  sprintf(filename,"./datafiles/phi_%ld.dat",t);
   fp = fopen(filename,"w");
   if (fp) {
     for ( i = 0; i < MESHX; i++)
@@ -265,3 +239,29 @@ void write2file (long t) {
     exit(1);
     }
   }
+void anisotropic_solverloop(){
+
+  long      i, j, z;
+  double    p,dp,du;
+  double    drv_frce, alln_chn;
+  double    Gamma;
+
+  grad_phi(1, dphi_now);
+  for (i=1; i < (MESHX-1); i++) {
+    grad_phi(i+1, dphi_next);
+    for (j=1; j < (MESHX-1); j++){
+
+      z= i*MESHX + j;
+      p = phi_old[z];
+      //Gamma = 2*G*lap_phi[z];
+      Gamma = div_phi(j);
+      drv_frce = (mu_old[z] - Mu)*(K-1)*(mu_old[z])*6*p*(1-p);
+      alln_chn = E*Gamma - (G/E)*18.0*(p)*(1.0-p)*(1.0-2.0*p);
+      dp = deltat*(alln_chn + drv_frce)/(tau*E);
+      phi_new[z] = p + dp;
+      du = deltat*M*lap_mu[z] - (K-1)*mu_old[z]*6*p*(1-p)*dp;
+      mu_new[z] = mu_old[z]  + du/(1+(K-1)*p*p*(3-2*p));
+    }
+    fnupdate();
+  }
+}

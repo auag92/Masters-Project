@@ -8,6 +8,7 @@
 #define inv_deltax2 (inv_deltax*inv_deltax)
 #define deltat (0.01)
 
+
 //----------Constants related to solidification equations------------------
 #define K (0.5)            /*Partition Coefficient*/
 #define G (1.0)            /*Surface Energy*/
@@ -16,6 +17,7 @@
 #define tau (1.0)         // relaxation time
 #define deltaMu (0.4)     // driving force in terms of deviation from mu_equilibriu,
 #define Mu (1.0)          //  chemical potential
+#define Dab         (0.06)  
 //--------------------------------------------------------------------------------------
 
 //-------Switches for toggling output configuration-------------------------------------
