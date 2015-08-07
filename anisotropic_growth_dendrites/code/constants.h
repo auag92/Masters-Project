@@ -1,5 +1,5 @@
 
-#define pmesh       1000
+#define pmesh       300
 #define pmesh2      (pmesh*pmesh)
 #define MESHX       (pmesh + 1)
 #define MESHX2      (MESHX*MESHX)
@@ -26,8 +26,8 @@
 // #define Corner           //Seed at corner of mesh
 // #define Nothing          //No seed
 //--------------------------------------------------------------
-#define save_phi        (2000)
-#define save_fluid      (2000)
+#define save_phi        (500)
+#define save_fluid      (500)
 #define phi_timesteps   (100000)
 //--------------------------------------------------------------
 #define radius2         1000

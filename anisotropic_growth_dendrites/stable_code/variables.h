@@ -4,7 +4,7 @@ double *phi_new, *phi_old;
 double *mu_new, *mu_old;
 double *lap_phi, *lap_mu;
 double *conc;
-double    *dphi_now,  *dphi_next;
+double *dphi_now,  *dphi_next;
 //----------------------------------------------------------
 /*Fluid module*/
 double *P; //Pressure

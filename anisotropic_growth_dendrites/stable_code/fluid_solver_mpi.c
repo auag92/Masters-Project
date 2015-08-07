@@ -3,7 +3,6 @@
 #include <math.h>
 #include "constants.h"
 #include "variables.h"
-//#include "mg_solver.c"
 #define ntimesteps 1
 
 
@@ -31,7 +30,6 @@ fluid_solver(){
   RHS_fn(Hx,Hy,rhs_fn,MESHX);
   LHS_fn();
   boundary_pressure();
-  //multigrid(P, rhs_fn, a_x, a_y);
   //Gauss_siedel(P, rhs_fn, a_x, a_y);
   gs_mpi();
   //gs_mpi();

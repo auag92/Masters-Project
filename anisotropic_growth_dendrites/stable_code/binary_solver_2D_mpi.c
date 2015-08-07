@@ -8,7 +8,6 @@
 #include "fluid_solver_mpi.c"
 
 int t;
-int ftag = 0;
 
 void      phi_update();
 void      phi_initialize();
@@ -19,7 +18,7 @@ void      fluid_initialize();
 void      write2file_fluid (int t, double *u, double *v, int M);
 void      allocate_memory();
 void      free_memory();
-void      solverloop();
+void      isotropic_solverloop();
 void      anisotropic_solverloop();
 void      grad_phi(int i, double *d_phi);
 double    dqdx( double phi_x, double phi_y);
@@ -39,7 +38,7 @@ void main(int argc, char *argv[]){
     phi_initialize();
     fluid_initialize();
     gs_allocate();
-    for (t=0; t < phi_timesteps; t++) {
+    for ( t = 0; t < phi_timesteps; t++ ) {
     #ifdef growth
       neuman_boundary(phi_old, MESHX);
       neuman_boundary(mu_old, MESHX);
@@ -47,8 +46,12 @@ void main(int argc, char *argv[]){
       neuman_boundary(conc, MESHX);
       laplacian(phi_old, lap_phi, MESHX);
       laplacian(mu_old,  lap_mu, MESHX);
-      // solverloop();
-      anisotropic_solverloop();
+      #ifdef ISO
+        isotropic_solverloop();
+      #endif
+      #ifdef ANISO
+        anisotropic_solverloop();
+      #endif
       update(phi_old, phi_new, MESHX);
       update(mu_old, mu_new, MESHX);
       if((t%save_phi) == 0) {
@@ -56,7 +59,7 @@ void main(int argc, char *argv[]){
       }
     #endif
     #ifdef FLUID
-      if (t>20) {
+      if (t>SMOOTH) {
         fluid_solver();
         if((t%save_fluid) ==0) {
              write2file_fluid (t,u_old,v_old,MESHX);
@@ -68,8 +71,8 @@ void main(int argc, char *argv[]){
     free_memory();
   } else { // This code fragment runs in the worker processes
     gs_allocate();
-    for (t=0; t < phi_timesteps; t++) {
-      if (t>20) {
+    for ( t = 0; t < phi_timesteps; t++ ) {
+      if ( t > SMOOTH ) {
         gs_mpi();
       }
     }
@@ -130,7 +133,7 @@ void free_memory(){
   free(dphi_now);
   free(dphi_next);
 }
-void solverloop() {
+void isotropic_solverloop() {
   int i,j,z;
   double p,dp_dt,dmu_dt, kai;
   double dc_dx, dc_dy, V_gradC;

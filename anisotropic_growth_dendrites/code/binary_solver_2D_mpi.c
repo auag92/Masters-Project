@@ -48,11 +48,12 @@ void main(int argc, char *argv[]){
       laplacian(mu_old,  lap_mu, MESHX);
 //---------------------------------------------------------------------------
       #ifdef isotropy
+      laplacian(phi_old, lap_phi, MESHX);
       isotropic_solverloop();
       #endif
 //---------------------------------------------------------------------------
       #ifdef anisotropy
-      laplacian(phi_old, lap_phi, MESHX);
+
       anisotropic_solverloop();
       #endif
 //---------------------------------------------------------------------------
@@ -65,7 +66,7 @@ void main(int argc, char *argv[]){
     #endif
 //---------------------------------------------------------------------------
     #ifdef FLUID
-      if (t>20) {
+      if (t>500) {
         fluid_solver();
         if((t%save_fluid) ==0) {
              write2file_fluid (t,u_old,v_old,MESHX);
