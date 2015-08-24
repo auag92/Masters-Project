@@ -147,26 +147,7 @@ void concentration(double *phi, double *mu, double *c, int m ){
     }
   }
 }
-void write2file_phi ( int t, int m,double *phi) {
-  int i,j,z;
-  FILE *fp;
-  char filename[1000];
 
-  sprintf(filename,"./datafiles_1.0.%d/phi_%d.dat",ftag, t);
-  fp = fopen(filename,"w");
-  for ( i = 0; i < m; i++)
-  {
-    for ( j=0; j < m; j++)
-    {
-
-      z= i*m + j;
-      fprintf(fp,"%d %d %le\n",j,i,phi[z]);
-
-    }
-    fprintf(fp,"\n");
-  }
-  fclose(fp);
-}
 void anisotropic_solverloop(){
 
   int       i, j, z;
