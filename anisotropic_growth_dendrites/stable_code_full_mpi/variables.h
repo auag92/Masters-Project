@@ -15,3 +15,4 @@ double *v_str, *u_str;
 double *a_x, *a_y;
 double *rhs_fn; // rhs function that is passed on to the multigrid module
 double *Hx, *Hy; // saving the Hx and Hy stuff from the fluid based calculations
+//------------------------------------------------------------------------------

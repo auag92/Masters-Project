@@ -58,49 +58,34 @@ void solverloop(int start, int end){
     #endif
   }
 }
-void boundary_pressure_mpi(int taskid){
+void boundary_pressure_mpi(int taskid, double *c, int m){
   int i ,y ,z;
   int indx_up, indx_dwn, indx_lft, indx_rght;
+  //up-down
   if ( (taskid == 1) || (taskid == numworkers) ) {
-    for (i = 0; i < pmesh; i++ ) {
+    for (i = 0; i < m; i++ ) {
       if ( taskid == 1 ){
         indx_up       = i;
-        P[indx_up]    = p_up;
+        c[indx_up]    = c[indx_up + m];
       }
       else if (taskid == numworkers) {
-        indx_dwn      = end + i;
-        P[indx_dwn]   = p_down;
+        indx_dwn      = end*(m-1) + i;
+        c[indx_dwn]   = c[indx_dwn - m];
       }
     }
   }
-  else{
-    for (i=start; i <= end; i++){
-      indx_rght     = i*pmesh;
-      indx_lft      = i*pmesh + pmesh - 1;
-      P[indx_lft]   = p_left;
-      P[indx_rght]  = p_right;
-    }
+  //left - right
+  for (i=start; i <= end; i++){
+    indx_rght     = i*m;
+    indx_lft      = i*m + m - 1;
+    c[indx_rght]  = c[indx_rght + 1];
+    c[indx_lft]   = c[indx_lft - 1];
   }
 }
-void neuman_boundary(double *c, int m) {
-  int i ,y ,z;
-  int m2 = m*m;
-  for (i=0; i<m -1; i++)
-  {
-    y= i*m;
-    z= i*m + m-1;
-    //left - right
-    c[y]       = c[y+1];
-    c[z]       = c[z-1];
-    // up - down
-    c[i]       = c[MESHX + i];
-    c[m2-m+i]  = c[m2-2*m+i];
-  }
-}
-void concentration(double *phi, double *mu, double *c, int m ){
+void concentration(double *phi, double *mu, double *c,int start, int end int m ){
   double p,u,h;
   int i, j, z;
-  for ( i = 0; i < m; i++)
+  for ( i = start; i < end; i++)
   {
     for ( j = 0; j < m; j++){
       z= i*m + j;
@@ -111,9 +96,9 @@ void concentration(double *phi, double *mu, double *c, int m ){
     }
   }
 }
-void phi_update() {
+void phi_update(int start, int end) {
   long i, j, z;
-  for (i=0; i < MESHX; i++) {
+  for (i=start; i < end; i++) {
     for (j=0; j < MESHX; j++){
       z= i*MESHX + j;
       phi_old[z]=phi_new[z];
