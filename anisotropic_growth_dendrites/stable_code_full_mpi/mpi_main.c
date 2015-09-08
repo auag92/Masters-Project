@@ -1,5 +1,4 @@
 #include "mpi.h"
-#include "time.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "math.h"
@@ -24,6 +23,9 @@ int main(int argc, char *argv[]){
     }
   }else{
     mpi_distribute(MESHX);
+    boundary_pressure_mpi(int taskid);
+    mpiexchange( taskid, phi_old, MESHX );
+    mpiexchange( taskid, mu_old, MESHX );
     for ( t = 0; t < phi_timesteps; t++ ) {
     }
   }
@@ -185,6 +187,93 @@ void boundary_pressure_mpi(int taskid){
       indx_lft      = i*pmesh + pmesh - 1;
       P[indx_lft]   = p_left;
       P[indx_rght]  = p_right;
+    }
+  }
+}
+void solverloop(int start, int end){
+
+  int       i, j;
+  int       indx, indx_up, indx_lft;
+  int       indx_rght, indx_up, indx_dwn;
+  double    phi,dphi_dt,dmu_dt;
+  double    drv_frce, alln_chn;
+  double    Gamma, kai;
+  double    dc_dx, dc_dy, V_gradC = 0.0;
+
+  // #ifdef ANISO
+  //   grad_phi(1, dphi_now);
+  // #endif
+
+  for (i=start; i <= end; i++) {
+
+    // #ifdef ANISO
+    //   grad_phi(i+1, dphi_next);
+    // #endif
+
+    for (j=1; j < (MESHX-1); j++){
+
+      indx          =   i*MESHX + j;
+      indx_lft      =   indx - 1;
+      indx_rght     =   indx + 1;
+      indx_up       =   indx - MESHX;
+      indx_dwn      =   indx + MESHX;
+
+      phi           =   phi_old[indx];
+
+      // #ifdef ISO
+        Gamma       = 2*G*lap_phi[indx];
+      // #endif
+      // #ifdef ANISO
+      //   Gamma       =     div_phi(j);
+      // #endif
+
+      drv_frce      =     (mu_old[indx] - Mu)*(K-1)*(mu_old[indx])*6*phi*(1-phi);
+      alln_chn      =     E*Gamma - (G/E)*18.0*(phi)*(1.0-phi)*(1.0-2.0*phi);
+      dp_dt         =     (alln_chn + drv_frce)/(tau*E);
+
+      phi_new[z]    =     phi + deltat*dphi_dt;
+
+      // #ifdef ANISO
+      //   dc_dx       =     (conc[indx_rght] - conc[indx_lft])*0.5*inv_deltax;
+      //   dc_dy       =     (conc[indx_dwn]  - conc[indx_up] )*0.5*inv_deltax;
+      //   V_gradC     =     u_old[indx]*dc_dx + v_old[indx]*dc_dy;
+      // #endif
+      // #ifdef ISO
+        // V_gradC     =     0.0;
+      // #endif
+      dmu_dt        =     Mob*lap_mu[indx] - V_gradC - (K-1)*mu_old[indx]*6*phi*(1-phi)*dphi_dt;
+      kai           =     1+(K-1)*phi*phi*(3-2*phi);
+      mu_new[indx]  =     mu_old[indx]  + deltat*dmu_dt/kai;
+    }
+    // #ifdef ANISO
+    //   fnupdate();
+    // #endif
+  }
+}
+void mpiexchange(int taskid, double *P, int Mx) {
+  if ((taskid%2) == 0) {
+    if (taskid != (numworkers)) {
+      MPI_Send(&P[end*Mx],      Mx, MPI_DOUBLE,  right_node, LTAG,      MPI_COMM_WORLD);
+      source  = right_node;
+      msgtype = RTAG;
+      MPI_Recv(&P[(end+1)*Mx],  Mx, MPI_DOUBLE,   source,     msgtype,   MPI_COMM_WORLD, &status);
+    }
+    MPI_Send(&P[start*Mx],      Mx, MPI_DOUBLE,   left_node,   RTAG,     MPI_COMM_WORLD);
+    source  = left_node;
+    msgtype = LTAG;
+    MPI_Recv(&P[0],             Mx, MPI_DOUBLE,   source,     msgtype,   MPI_COMM_WORLD, &status);
+  } else {
+    if (taskid != 1) {
+       source  = left_node;
+       msgtype = LTAG;
+       MPI_Recv(&P[0],          Mx, MPI_DOUBLE,   source,      msgtype,  MPI_COMM_WORLD, &status);
+       MPI_Send(&P[start*Mx],   Mx, MPI_DOUBLE,   left_node,   RTAG,     MPI_COMM_WORLD);
+    }
+    if (taskid != numworkers) {
+      source  = right_node;
+      msgtype = RTAG;
+      MPI_Recv(&P[(end+1)*Mx],  Mx, MPI_DOUBLE, source,      msgtype,  MPI_COMM_WORLD, &status);
+      MPI_Send(&P[(end)*Mx],    Mx, MPI_DOUBLE, right_node,  LTAG,     MPI_COMM_WORLD);
     }
   }
 }
