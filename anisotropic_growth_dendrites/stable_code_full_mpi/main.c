@@ -74,48 +74,6 @@ int main(int argc, char *argv[]){
   MPI_Finalize();
   return(0);
 }
-// void allocate_memory(){
-//   if ( taskid == MASTER ) {
-//     averow    =   pmesh/numworkers;
-//     extra     =   pmesh%numworkers;
-//
-//     rank      =    1;
-//     rows      =   (rank <= extra) ? averow+1 : averow;
-//     dest      =   rank;
-//     rows++;
-//     MPI_Send(&rows,       1,      MPI_INT,      dest,     BEGIN,     MPI_COMM_WORLD);
-//     rows--;
-//
-//     for ( rank=2; rank <= (numworkers); rank++) {
-//       rows         =   (rank <= extra) ? averow+1 : averow;
-//       dest = rank;
-//       MPI_Send(&rows,      1,     MPI_INT,       dest,   BEGIN,  MPI_COMM_WORLD);
-//     }
-//   }
-//   if(taskid != MASTER) {
-//     source =  MASTER;
-//     MPI_Recv(&rows,          1,      MPI_INT,     source,    BEGIN,   MPI_COMM_WORLD,  &status);
-//     if((taskid ==1) || (taskid == numworkers)) {
-//       phi_old     =   (double *)malloc(rows*MESHX*sizeof(double));
-//       phi_new     =   (double *)malloc(rows*MESHX*sizeof(double));
-//       mu_old      =   (double *)malloc(rows*MESHX*sizeof(double));
-//       mu_new      =   (double *)malloc(rows*MESHX*sizeof(double));
-//       lap_phi     =   (double *)malloc(rows*MESHX*sizeof(double));
-//       lap_mu      =   (double *)malloc(rows*MESHX*sizeof(double));
-//       conc        =   (double *)malloc(rows*MESHX*sizeof(double));
-//     } else {
-//       phi_old     =   (double *)malloc(rows*MESHX*sizeof(double));
-//       phi_new     =   (double *)malloc(rows*MESHX*sizeof(double));
-//       mu_old      =   (double *)malloc(rows*MESHX*sizeof(double));
-//       mu_new      =   (double *)malloc(rows*MESHX*sizeof(double));
-//       lap_phi     =   (double *)malloc(rows*MESHX*sizeof(double));
-//       lap_mu      =   (double *)malloc(rows*MESHX*sizeof(double));
-//       conc        =   (double *)malloc(rows*MESHX*sizeof(double));
-//     }
-//     dphi_now    =   (double *)malloc(MESHX*4*sizeof(double));
-//     dphi_next   =   (double *)malloc(MESHX*4*sizeof(double));
-//   }
-// }
 void write2file_phi ( int t, int m,double *phi) {
   int i,j,z;
   FILE *fp;
