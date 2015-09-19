@@ -26,51 +26,8 @@ void NS_solver() {
     V_update(MESHX);
   }
 }
-void allocate_memory_fluid(int Mx, int Px) {
-  if( taskid == MASTER ) {
-    v_old       =   (double *)malloc((Mx*Mx*sizeof(double));
-    u_old       =   (double *)malloc((Mx*Mx*sizeof(double));
-    averow    =   Mx/numworkers;
-    extra     =   Mx%numworkers;
-    for ( rank=1; rank <= (numworkers); rank++) {
-      rows      =   (rank <= extra) ? averow+1 : averow;
-      dest      =   rank;
-      MPI_Send(&rows, 1, MPI_INT, dest, BEGIN, MPI_COMM_WORLD);
-    }
-  }else {
-    source =  MASTER;
-    MPI_Recv(&rows, 1, MPI_INT, source, BEGIN, MPI_COMM_WORLD, &status);
-    if((taskid ==1) || (taskid == numworkers)) {
-      v_old =   (double *)malloc((rows+1)*Mx*sizeof(double));
-      v_now =   (double *)malloc((rows+1)*Mx*sizeof(double));
-      u_old =   (double *)malloc((rows+1)*Mx*sizeof(double));
-      u_now =   (double *)malloc((rows+1)*Mx*sizeof(double));
-    } else {
-      v_old =   (double *)malloc((rows+2)*Mx*sizeof(double));
-      v_now =   (double *)malloc((rows+2)*Mx*sizeof(double));
-      u_old =   (double *)malloc((rows+2)*Mx*sizeof(double));
-      u_now =   (double *)malloc((rows+2)*Mx*sizeof(double));
-    }
-    if ((taskid == 1) || (taskid == numworkers)) {
-      P   = (double *)malloc((rows)*Px*sizeof(double));
-      fn  = (double *)malloc((rows)*Px*sizeof(double));
-      a_x = (double *)malloc((rows)*(Px-1)*sizeof(double));
-      a_y = (double *)malloc((rows-1)*Px*sizeof(double));
-    } else {
-      P  = (double *)malloc((rows+1)*Px*sizeof(double));
-      fn = (double *)malloc((rows+1)*Px*sizeof(double));
-      a_x = (double *)malloc((rows+1)*(Px-1)*sizeof(double));
-      a_y = (double *)malloc(rows*Px*sizeof(double));
-    }
 
-    lap_u = (double *)(rows*Mx*sizeof(double));
-    lap_v = (double *)(rows*Mx*sizeof(double));
-    Hx    = (double *)(rows*Mx*sizeof(double));
-    Hy    = (double *)(rows*Mx*sizeof(double));
-
-  }
-}
-void velocities_initialize() {
+void initialize_velocities() {
   long i,j,z, r1,r2;
 
   for (i=0; i< MESHX; i++)
@@ -83,13 +40,53 @@ void velocities_initialize() {
       u_old[z] = 0.0;
     }
   }
-  for (i=0; i< pmesh; i++)
-  {
-    for (j=0; j< pmesh; j++)
-    {
-      z= i*pmesh + j;
-      P[z] = 0.0;
-      rhs_fn[z] = 0.0;
+}
+void initialize_pressure(double *P,int taskid, int Px) {
+  int i, j;
+  if(taskid == 1) {
+    for (i=0; i < rows; i++){
+      for (j=0; j < Px; j++){
+        z= i*Px + j;
+        P[z] = 0.0;
+        rhs_fn[z] = 0.0;
+        if(j==0) {
+          P[z] = p_left;
+        }else if(j == (Px-1)){
+          P[z] = p_right;
+        }
+        if(i == 0) {
+          P[z] = p_down;
+        }
+      }
+    }
+  }else if( taskid == numworkers ){
+    for (i=0; i < rows; i++){
+      for (j=0; j < Px; j++){
+        z= i*Px + j;
+        P[z] = 0.0;
+        rhs_fn[z] = 0.0;
+        if(j==0) {
+          P[z] = p_left;
+        }else if(j == (Px-1)){
+          P[z] = p_right;
+        }
+        if(i == rows-1) {
+          P[z] = p_up;
+        }
+      }
+    }
+  }else {
+    for (i = 0; i < rows+1; i++){
+      for (j = 0; j < Px; j++){
+        z= i*Px + j;
+        P[z] = 0.0;
+        rhs_fn[z] = 0.0;
+        if(j==0) {
+          P[z] = p_left;
+        }else if(j == (Px-1)){
+          P[z] = p_right;
+        }
+      }
     }
   }
 }
@@ -120,25 +117,6 @@ void boundary_velocities() {
     u_old[MESHX2-MESHX+i] = 0;  // north
 #endif
   }
-}
-void boundary_pressure(int taskid, int r){
-  int i;
-  int indx_up, indx_dwn, indx_lft, indx_rght;
-  for ( i=0; i< pmesh; i++  )
-  {
-    indx_lft  = i*pmesh;
-    indx_rght = i*pmesh + pmesh-1;
-    indx_up   = i;
-    indx_dwn  = pmesh2 - pmesh + i;
-
-    //left - right
-    P[indx_lft]      = p_left;
-    P[indx_rght]     = p_right;
-    // up - down
-    P[indx_dwn]      = p_down;
-    P[indx_up]       = p_up;
-  }
-  P[0]  =  p_left;
 }
 void LHS_fn(int Mx, int Px, int r){
   int i,j,x,m,x1,x2,y,y1,y2,z,z1,z2,c,d1,d2,t;
@@ -178,7 +156,7 @@ void computeH(double *u, double *v,double *hx, double *hy){
   int i,j,z,x;
   double du_dx,du_dy,dv_dx,dv_dy,du_dt,dv_dt;
 
-  // V_str(MESHX);
+  V_str(MESHX);
   laplacian(u,lap_u, MESHX, start, end);
   laplacian(v,lap_v, MESHX, start, end);
   for(i=start; i<= end; i++){
