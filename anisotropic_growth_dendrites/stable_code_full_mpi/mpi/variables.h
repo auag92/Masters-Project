@@ -11,6 +11,7 @@ double *P; //Pressure
 double *fn;
 double *u_old, *u_now; // velocity in x direction
 double *v_old, *v_now; // velocity in y direction
+double *lap_u, *lap_v;// laplacian 
 double *v_str, *u_str;
 double *a_x, *a_y;
 double *rhs_fn; // rhs function that is passed on to the multigrid module
