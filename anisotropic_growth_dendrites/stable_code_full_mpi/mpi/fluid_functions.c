@@ -1,5 +1,3 @@
-#include "mpi_fn.c"
-
 void allocate_memory_FluidVariables(int Mx, int Px);
 void initialize_velocities(int Mx);
 void initialize_pressure(double *P,int taskid, int Px);

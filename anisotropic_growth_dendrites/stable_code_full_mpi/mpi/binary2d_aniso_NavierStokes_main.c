@@ -5,9 +5,9 @@
 #include "constants.h"
 #include "variables.h"
 #include "MPI_def.h"
-#include "fluid_functions.c"
-#include "alloy_functions.c" 
 #include "mpi_fn.c"
+#include "fluid_functions.c"
+#include "alloy_functions.c"
 
 void mpi_distribute(int Mx);
 void write2file( int t, int m, double *c, char *fname);
@@ -51,15 +51,15 @@ void main(int argc, char *argv[]){
     for (t = 0; t <= phi_timesteps; t++){
       mpiexchange(taskid, phi_old, MESHX);
       mpiexchange(taskid, mu_old, MESHX);
-      boundary_mpi(taskid, phi_old, MESHX);
-      boundary_mpi(taskid, mu_old, MESHX);
+      boundary_neuman_mpi(taskid, phi_old, MESHX);
+      boundary_neuman_mpi(taskid, mu_old, MESHX);
       laplacian(phi_old, lap_phi, MESHX);
       laplacian(mu_old, lap_mu, MESHX);
 #ifdef FLUID
       computeH(u_old,v_old,Hx,Hy);
       RHS_fn(Hx,Hy,rhs_fn,MESHX, pmesh);
       LHS_fn(MESHX, pmesh);
-      boundary_pressure(taskid);
+      initialize_pressure(P, taskid, pmesh);
       gauss_siedel();
       ns_solver(start, end, phi_old);
       update_velocities(MESHX);
@@ -71,6 +71,7 @@ void main(int argc, char *argv[]){
       }
     }
   }
+  MPI_Close();
 }
 void mpi_distribute(int Mx){
   if ( taskid == MASTER ) {
