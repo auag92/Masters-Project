@@ -39,10 +39,12 @@ void main(int argc, char *argv[]){
 #endif
       if (t%save_phi == 0) {
         receivefrmworker(phi_old);
+        write2file( t, MESHX, phi_old, fname1);
+        #ifdef FLUID
         receivefrmworker(u_old);
         receivefrmworker(v_old);
-        write2file( t, MESHX, phi_old, fname1);
         write2file1( t, MESHX, u_old, v_old, fname2);
+        #endif
       }
     }
   }else {
@@ -56,10 +58,10 @@ void main(int argc, char *argv[]){
       laplacian(phi_old, lap_phi, MESHX);
       laplacian(mu_old, lap_mu, MESHX);
 #ifdef FLUID
+      initialize_pressure(P, taskid, pmesh);
       computeH(u_old,v_old,Hx,Hy);
       RHS_fn(Hx,Hy,rhs_fn,MESHX, pmesh);
       LHS_fn(MESHX, pmesh);
-      initialize_pressure(P, taskid, pmesh);
       gauss_siedel();
       ns_solver(start, end, phi_old);
       update_velocities(MESHX);
@@ -71,7 +73,7 @@ void main(int argc, char *argv[]){
       }
     }
   }
-  MPI_Close();
+  MPI_Finalize();
 }
 void mpi_distribute(int Mx){
   if ( taskid == MASTER ) {
@@ -98,8 +100,10 @@ void mpi_distribute(int Mx){
       MPI_Send(&right_node,           1,                   MPI_INT,         dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&phi_old[offset*Mx],      rows*Mx,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&mu_old[offset*Mx],       rows*Mx,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+#ifdef FLUID
       MPI_Send(&u_old[offset*Mx],       rows*Mx,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
       MPI_Send(&v_old[offset*Mx],       rows*Mx,          MPI_DOUBLE,      dest,   BEGIN,  MPI_COMM_WORLD);
+#endif
       offset = offset + rows;
     }
   }else{

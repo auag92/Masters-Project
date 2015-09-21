@@ -1,4 +1,4 @@
-#define pmesh               300                     //Mesh dimension for the pressure grid
+#define pmesh               100                     //Mesh dimension for the pressure grid
 #define pmesh2              (pmesh*pmesh)
 #define MESHX               (pmesh + 1)             //Mesh dimension for the phi, U and V grids
 #define MESHX2              (MESHX*MESHX)
@@ -17,13 +17,13 @@
 #define Dab       (0.04)      // Strength of Anisotropy
 //-------Switches for toggling between the output configuration-----------------
 #define           growth          //for activating phi growth
-#define           FLUID           // for activating fluid solver
+// #define           FLUID           // for activating fluid solver
 #define           Centre          // seed in centre
 // #define        Corner          // seed in corner
 // #define        Nothing         // no seed
 
 // #define ISO                       // For activating Isotropic Solver
-#define           radius2   1000  // size of the seed
+#define           radius2   400  // size of the seed
 #define ANISO                     // For activating Anisotropic Solver
 
 //------------------------------------------------------------------------------
