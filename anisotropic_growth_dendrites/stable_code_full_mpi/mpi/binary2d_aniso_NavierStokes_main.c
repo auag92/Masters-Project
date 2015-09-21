@@ -70,6 +70,10 @@ void main(int argc, char *argv[]){
       phi_update();
       if (t%save_phi == 0) {
         sendtomaster(taskid, phi_old);
+#ifdef FLUID
+        sendtomaster(taskid, u_old);
+        sendtomaster(taskid, v_old);
+#endif
       }
     }
   }
@@ -119,8 +123,8 @@ void mpi_distribute(int Mx){
         MPI_Recv(&phi_old[0],   rows*Mx,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
         MPI_Recv(&mu_old[0],    rows*Mx,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
 #ifdef FLUID
-        MPI_Recv(&u_old[0],   rows*Mx,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
-        MPI_Recv(&v_old[0],    rows*Mx,          MPI_DOUBLE,      source,   BEGIN,  MPI_COMM_WORLD, &status);
+        MPI_Recv(&u_old[0], rows*Mx, MPI_DOUBLE, source, BEGIN,  MPI_COMM_WORLD, &status);
+        MPI_Recv(&v_old[0], rows*Mx, MPI_DOUBLE, source, BEGIN,  MPI_COMM_WORLD, &status);
 #endif
       }
       else {

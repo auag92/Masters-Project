@@ -1,4 +1,4 @@
-#define pmesh               100                     //Mesh dimension for the pressure grid
+#define pmesh               400                     //Mesh dimension for the pressure grid
 #define pmesh2              (pmesh*pmesh)
 #define MESHX               (pmesh + 1)             //Mesh dimension for the phi, U and V grids
 #define MESHX2              (MESHX*MESHX)
@@ -32,7 +32,7 @@
 //-------File output parameters-------------------------------------------------
 #define save_phi           (100)
 #define save_fluid         (100)
-#define phi_timesteps     (10000)
+#define phi_timesteps     (30000)
 #define ftag                 3
 //---------Tolerences-----------------------------------------------------------
 #ifdef growth

@@ -114,23 +114,23 @@ void boundary_neuman_mpi(int taskid, double *c, int Mx){
   int indx_up, indx_dwn, indx_lft, indx_rght;
   if ( (taskid == 1) || (taskid == numworkers) ) {
     if ( taskid == 1 ){
-      for (i = 0; i < Mx; i++ ) {
-        c[i]        = c[Mx + i];
+      for (i = 1; i < (Mx-1); i++ ) {
+        c[i]       = c[Mx + i];
       }
     }
     else if (taskid == numworkers) {
-      for (i = 0; i < Mx; i++ ) {
-        indx_up    = (rows-1)*Mx + i;
-        indx       = (rows)*Mx   + i;
+      for (i = 1; i < (Mx-1); i++ ) {
+        indx_up    = (end)*Mx + i;
+        indx       = (end + 1)*Mx   + i;
         c[indx]    = c[indx_up];
       }
     }
   }
   for (i=start; i <= end; i++){
-    indx_rght     = i*Mx;
-    indx_lft      = i*Mx + Mx - 1;
-    c[indx_lft]   = c[indx_lft + 1];
-    c[indx_rght]  = c[indx_rght - 1];
+    indx_lft     = i*Mx;
+    indx_rght    = i*Mx + Mx - 1;
+    c[indx_lft]  = c[indx_lft + 1];
+    c[indx_rght] = c[indx_rght - 1];
   }
 }
 void laplacian(double *f, double *lap, int Mx) {
