@@ -258,4 +258,135 @@ void    boundary_pipeflow(){
     f[5*My+indx_bot]  = 0.5*(rho_out - (f[0*My+indx_bot]+f[1*My+indx_bot]+f[2*My+indx_bot]+f[3*My+indx_bot]+f[4*My+indx_bot]+f[6*My+indx_bot]+f[8*My+indx_bot]));
     f[7*My+indx_bot]  = f[5*My+indx_bot];
   }
-  else if(taskid == numworker
+  else if(taskid == numworkers){
+    for (i = 1; i < My - 2; i++) {
+    // top wall - north side - no slip
+      indx_top         = i + (end-2)*Q*My;
+
+      u[indx_top] = 0.0;
+      v[indx_top] = 0.0;
+      rho[indx_top]     = f[0*My+indx_top]+f[1*My+indx_top]+f[3*My+indx_top]+2.0*(f[2*My+indx_top]+f[5*My+indx_top]+f[6*My+indx_top]);
+
+      f[4*My+indx_top] = f[2*My+indx_top];
+      f[7*My+indx_top] = f[5*My+indx_top] + 0.5*(f[1*My+indx_top] - f[3*My+indx_top]);
+      f[8*My+indx_top] = f[6*My+indx_top] - 0.5*(f[1*My+indx_top] - f[3*My+indx_top]);
+    }
+    for(i = start; i <= (end-1); i++) {
+    // left wall - inlet - eastside
+      indx_left    = Q*My*i + 1;
+      u_wall       = rho_in - (f[0*My+indx_left]+f[2*My+indx_left]+f[4*My+indx_left]+2.*(f[3*My+indx_left]+f[7*My+indx_left]+f[6*My+indx_left]));
+      u[indx_left] = u_wall;
+      v[indx_left] = 0.0;
+      rho[indx_left]    = rho_in;
+      f[1*My+indx_left] = f[3*My+indx_left] + two_by_three*u_wall;//
+      f[5*My+indx_left] = f[7*My+indx_left] - 0.5*(f[2*My+indx_left] - f[4*My+indx_left]) + one_by_six*u_wall;
+      f[8*My+indx_left] = f[6*My+indx_left] + 0.5*(f[2*My+indx_left] - f[4*My+indx_left]) + one_by_six*u_wall;//
+
+    // right wall - outlet - westside
+      indx_right   = Q*My*i + My - 2;
+      u_wall       = -1.0*rho_out + (f[0*My+indx_right]+f[2*My+indx_right]+f[4*My+indx_right]+2.*(f[1*My+indx_right]+f[5*My+indx_right]+f[8*My+indx_right]));
+      u[indx_right] = u_wall;
+      v[indx_right] = 0.0;
+      rho[indx_right]    = rho_out;
+      f[3*My+indx_right] = f[1*My+indx_right] - two_by_three*u_wall;
+      f[7*My+indx_right] = f[5*My+indx_right] + 0.5*(f[2*My+indx_right] - f[4*My+indx_right]) - one_by_six*u_wall;
+      f[6*My+indx_right] = f[8*My+indx_right] - 0.5*(f[2*My+indx_right] - f[4*My+indx_right]) - one_by_six*u_wall;
+    }
+    // top left corner
+    indx_top         = 1 + Q*(end-2)*My;
+    u[indx_top] = 0.0;
+    v[indx_top] = 0.0;
+    f[1*My+indx_top] = f[3*My+indx_top];
+    f[4*My+indx_top] = f[2*My+indx_top];
+    f[8*My+indx_top] = f[6*My+indx_top];
+    rho[indx_top]     = f[0*My+indx_top]+f[1*My+indx_top]+f[3*My+indx_top]+2.0*(f[2*My+indx_top]+f[5*My+indx_top]+f[6*My+indx_top]);
+    f[5*My+indx_top] = 0.5*(rho_in - (f[0*My+indx_top]+f[1*My+indx_top]+f[2*My+indx_top]+f[3*My+indx_top]+f[4*My+indx_top]+f[6*My+indx_top]+f[8*My+indx_top]));
+    f[7*My+indx_top] = f[5*My+indx_top];
+
+    //top right corner
+    indx_top         = My - 2 + Q*(end-2)*My;
+    u[indx_top] = 0.0;
+    v[indx_top] = 0.0;
+    f[3*My+indx_top] = f[1*My+indx_top];
+    f[4*My+indx_top] = f[2*My+indx_top];
+    f[7*My+indx_top] = f[5*My+indx_top];
+    rho[indx_top]     = f[0*My+indx_top]+f[1*My+indx_top]+f[3*My+indx_top]+2.0*(f[2*My+indx_top]+f[5*My+indx_top]+f[6*My+indx_top]);
+    f[6*My+indx_top] = 0.5*(rho[indx_top] - (f[0*My+indx_top]+f[1*My+indx_top]+f[2*My+indx_top]+f[3*My+indx_top]+f[4*My+indx_top]+f[5*My+indx_top]+f[7*My+indx_top]));
+    f[8*My+indx_top] = f[6*My+indx_top];
+  }else{
+    for(i = start; i <= end; i++) {
+    // left wall - inlet - eastside
+      indx_left    = My*i + 1;
+      u_wall       = rho_in - (f[0*My+indx_left]+f[2*My+indx_left]+f[4*My+indx_left]+2.*(f[3*My+indx_left]+f[7*My+indx_left]+f[6*My+indx_left]));
+      u[indx_left] = u_wall;
+      v[indx_left] = 0.0;
+      rho[indx_left]    = rho_in;
+      f[1*My+indx_left] = f[3*My+indx_left] + two_by_three*u_wall;//
+      f[5*My+indx_left] = f[7*My+indx_left] - 0.5*(f[2*My+indx_left] - f[4*My+indx_left]) + one_by_six*u_wall;
+      f[8*My+indx_left] = f[6*My+indx_left] + 0.5*(f[2*My+indx_left] - f[4*My+indx_left]) + one_by_six*u_wall;//
+
+    // right wall - outlet - westside
+      indx_right   = Q*My*i + My - 2;
+      u_wall       = -1.0*rho_out + (f[0*My+indx_right]+f[2*My+indx_right]+f[4*My+indx_right]+2.*(f[1*My+indx_right]+f[5*My+indx_right]+f[8*My+indx_right]));
+      u[indx_right] = u_wall;
+      v[indx_right] = 0.0;
+      rho[indx_right]    = rho_out;
+      f[3*My+indx_right] = f[1*My+indx_right] - two_by_three*u_wall;
+      f[7*My+indx_right] = f[5*My+indx_right] + 0.5*(f[2*My+indx_right] - f[4*My+indx_right]) - one_by_six*u_wall;
+      f[6*My+indx_right] = f[8*My+indx_right] - 0.5*(f[2*My+indx_right] - f[4*My+indx_right]) - one_by_six*u_wall;
+    }
+  }
+}
+
+void mpiexchange(int taskid, double *c, int Mx) {
+  if ((taskid%2) == 0) {
+    if (taskid != (numworkers)) {
+      source  = right_node;
+      msgtype = RTAG;
+      MPI_Send(&c[k*Mx*My+end*Mx],     Q*Mx, MPI_DOUBLE,  right_node, LTAG,      MPI_COMM_WORLD);
+      MPI_Recv(&c[k*Mx*My+(end+1)*Mx],  Mx, MPI_DOUBLE,   source,     msgtype,   MPI_COMM_WORLD, &status);
+    }
+    source  = left_node;
+    msgtype = LTAG;
+    MPI_Send(&c[k*Mx*My+start*Mx],      Mx, MPI_DOUBLE,   left_node,   RTAG,     MPI_COMM_WORLD);
+    MPI_Recv(&c[k*Mx*My+0],             Mx, MPI_DOUBLE,   source,     msgtype,   MPI_COMM_WORLD, &status);
+  } else {
+    if (taskid != 1) {
+       source  = left_node;
+       msgtype = LTAG;
+       MPI_Recv(&c[k*Mx*My+0],          Mx, MPI_DOUBLE,   source,      msgtype,  MPI_COMM_WORLD, &status);
+       MPI_Send(&c[k*Mx*My+start*Mx],   Mx, MPI_DOUBLE,   left_node,   RTAG,     MPI_COMM_WORLD);
+    }
+    if (taskid != numworkers) {
+      source  = right_node;
+      msgtype = RTAG;
+      MPI_Send(&c[k*Mx*My+(end)*Mx],    Mx, MPI_DOUBLE, right_node,  LTAG,     MPI_COMM_WORLD);
+      MPI_Recv(&c[k*Mx*My+(end+1)*Mx],  Mx, MPI_DOUBLE, source,      msgtype,  MPI_COMM_WORLD, &status);
+    }
+  }
+}
+
+void sendtomaster(int taskid, double *c) {
+  dest = MASTER;
+
+  MPI_Send(&offset,       1,    MPI_INT,         dest, WRITE, MPI_COMM_WORLD);
+  MPI_Send(&rows,         1,    MPI_INT,         dest, WRITE, MPI_COMM_WORLD);
+  MPI_Send(&left_node,    1,    MPI_INT,         dest, WRITE, MPI_COMM_WORLD);
+  MPI_Send(&right_node,   1,    MPI_INT,         dest, WRITE, MPI_COMM_WORLD);
+  if (taskid == 1) {
+    MPI_Send(&c[0],     rows*MESHX, MPI_DOUBLE,     dest, WRITE, MPI_COMM_WORLD);
+  } else {
+    MPI_Send(&c[MESHX], rows*MESHX, MPI_DOUBLE,     dest, WRITE, MPI_COMM_WORLD);
+  }
+}
+void receivefrmworker(double *c) {
+  int rank;
+  for (rank=1; rank <= numworkers; rank++) {
+    source = rank;
+    MPI_Recv(&offset,             1,             MPI_INT,       source,   WRITE,  MPI_COMM_WORLD, &status);
+    MPI_Recv(&rows,               1,             MPI_INT,       source,   WRITE,  MPI_COMM_WORLD, &status);
+    MPI_Recv(&left_node,          1,             MPI_INT,       source,   WRITE,  MPI_COMM_WORLD, &status);
+    MPI_Recv(&right_node,         1,             MPI_INT,       source,   WRITE,  MPI_COMM_WORLD, &status);
+    MPI_Recv(&c[offset*MESHX],    rows*MESHX,    MPI_DOUBLE,    source,   WRITE,  MPI_COMM_WORLD, &status);
+  }
+}
