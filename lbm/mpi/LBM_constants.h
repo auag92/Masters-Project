@@ -22,7 +22,7 @@
   #define inv_rho_out 1./rho_out
 #endif
 #define tol     10e-6
-#define tsteps  3000 // no. of iterations
+#define tsteps  100 // no. of iterations
 #define savet   10   //file saving steps
 #define ftag    6
 

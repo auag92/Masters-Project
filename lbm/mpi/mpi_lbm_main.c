@@ -20,6 +20,21 @@ int t;
 void allocate_rows();
 void allocate_memory();
 void free_memory();
+
+void    calculate_rho();
+void    calculate_velocities();
+void    Fk_eq( double u, double v, double r );
+void    collision_step();
+void    streaming_step();
+void    boundary_pipeflow();
+void    init();
+
+void mpiexchange(int taskid, double *c, int M);
+void sendtomaster(int taskid, double *c, int M);
+void receivefrmworker(double *c, int M);
+
+void write2file( int t, int m, double *c, char *fname);
+void write2file1( int t, int m, double *c, double *d, char *fname);
 /*main*/
 void main(int argc, char *argv[]) {
   MPI_Init(&argc,&argv);
@@ -30,29 +45,34 @@ void main(int argc, char *argv[]) {
   allocate_rows();
   allocate_memory();
 
+  char fname1[100], fname2[100];
+  int  m = sprintf(fname1,"velocities");
+  int  n = sprintf(fname2,"rho");
 
   if (taskid == MASTER){
     printf("Hi, I am the Master node.\n");
     for (t = 1; t <= tsteps; t++) {
       if(t%savet == 0){
-        //receivefrmworker();
-        // write2file1(t,Mx,u,v,fname1);
+        receivefrmworker(u, Mx);
+        receivefrmworker(v, Mx);
+        printf("%d\n",t);
+        write2file1(t,Mx,u,v,fname1);
         // write2file(t,Mx,rho,fname2);
       }
     }
   }else {
-    printf("Hi, I am worker node no. %d, with no. of rows = %d\n", taskid, rows);
-    allocate_memory();
+    printf("Hi, I am worker node no. %d, with no. of rows = %d. start = %d, end = %d\n", taskid, rows, start, end);
     init();
     for (t = 1; t <= tsteps; t++) {
       collision_step();
       streaming_step();
-      boundary_pipeflow();
+      // mpiexchange(taskid, f, Q*Mx);
+      // boundary_pipeflow();
       calculate_rho();
       calculate_velocities();
       if(t%savet == 0){
-        // sendtomaster();
-        // write2file(t,Mx,rho,fname2);
+        sendtomaster(taskid, u, Mx);
+        sendtomaster(taskid, v, Mx);
       }
     }
   }
@@ -85,9 +105,9 @@ void allocate_memory() {
 
   }else {
     //velocity matrices
-    u      = (double *)malloc(rows*My*sizeof(double));
-    v      = (double *)malloc(rows*My*sizeof(double));
-    rho    = (double *)malloc(rows*My*sizeof(double));
+    u      = (double *)malloc((rows+2)*My*sizeof(double));
+    v      = (double *)malloc((rows+2)*My*sizeof(double));
+    rho    = (double *)malloc((rows+2)*My*sizeof(double));
     start = 1;
     // probability distribution functions
     if(taskid == 1 || taskid == numworkers){
@@ -338,35 +358,35 @@ void    boundary_pipeflow(){
   }
 }
 
-void mpiexchange(int taskid, double *c, int Mx) {
+void mpiexchange(int taskid, double *c, int M) {
   if ((taskid%2) == 0) {
     if (taskid != (numworkers)) {
       source  = right_node;
       msgtype = RTAG;
-      MPI_Send(&c[k*Mx*My+end*Mx],     Q*Mx, MPI_DOUBLE,  right_node, LTAG,      MPI_COMM_WORLD);
-      MPI_Recv(&c[k*Mx*My+(end+1)*Mx],  Mx, MPI_DOUBLE,   source,     msgtype,   MPI_COMM_WORLD, &status);
+      MPI_Send(&c[end*M],      M, MPI_DOUBLE,  right_node, LTAG,      MPI_COMM_WORLD);
+      MPI_Recv(&c[(end+1)*M],  M, MPI_DOUBLE,   source,     msgtype,   MPI_COMM_WORLD, &status);
     }
     source  = left_node;
     msgtype = LTAG;
-    MPI_Send(&c[k*Mx*My+start*Mx],      Mx, MPI_DOUBLE,   left_node,   RTAG,     MPI_COMM_WORLD);
-    MPI_Recv(&c[k*Mx*My+0],             Mx, MPI_DOUBLE,   source,     msgtype,   MPI_COMM_WORLD, &status);
+    MPI_Send(&c[start*M],      M, MPI_DOUBLE,   left_node,   RTAG,     MPI_COMM_WORLD);
+    MPI_Recv(&c[0],            M, MPI_DOUBLE,   source,     msgtype,   MPI_COMM_WORLD, &status);
   } else {
     if (taskid != 1) {
        source  = left_node;
        msgtype = LTAG;
-       MPI_Recv(&c[k*Mx*My+0],          Mx, MPI_DOUBLE,   source,      msgtype,  MPI_COMM_WORLD, &status);
-       MPI_Send(&c[k*Mx*My+start*Mx],   Mx, MPI_DOUBLE,   left_node,   RTAG,     MPI_COMM_WORLD);
+       MPI_Recv(&c[0],         M, MPI_DOUBLE,   source,      msgtype,  MPI_COMM_WORLD, &status);
+       MPI_Send(&c[start*M],   M, MPI_DOUBLE,   left_node,   RTAG,     MPI_COMM_WORLD);
     }
     if (taskid != numworkers) {
       source  = right_node;
       msgtype = RTAG;
-      MPI_Send(&c[k*Mx*My+(end)*Mx],    Mx, MPI_DOUBLE, right_node,  LTAG,     MPI_COMM_WORLD);
-      MPI_Recv(&c[k*Mx*My+(end+1)*Mx],  Mx, MPI_DOUBLE, source,      msgtype,  MPI_COMM_WORLD, &status);
+      MPI_Send(&c[(end)*M],    M, MPI_DOUBLE, right_node,  LTAG,     MPI_COMM_WORLD);
+      MPI_Recv(&c[(end+1)*M],  M, MPI_DOUBLE, source,      msgtype,  MPI_COMM_WORLD, &status);
     }
   }
 }
 
-void sendtomaster(int taskid, double *c) {
+void sendtomaster(int taskid, double *c, int M) {
   dest = MASTER;
 
   MPI_Send(&offset,       1,    MPI_INT,         dest, WRITE, MPI_COMM_WORLD);
@@ -374,12 +394,12 @@ void sendtomaster(int taskid, double *c) {
   MPI_Send(&left_node,    1,    MPI_INT,         dest, WRITE, MPI_COMM_WORLD);
   MPI_Send(&right_node,   1,    MPI_INT,         dest, WRITE, MPI_COMM_WORLD);
   if (taskid == 1) {
-    MPI_Send(&c[0],     rows*MESHX, MPI_DOUBLE,     dest, WRITE, MPI_COMM_WORLD);
+    MPI_Send(&c[0],     rows*M, MPI_DOUBLE,     dest, WRITE, MPI_COMM_WORLD);
   } else {
-    MPI_Send(&c[MESHX], rows*MESHX, MPI_DOUBLE,     dest, WRITE, MPI_COMM_WORLD);
+    MPI_Send(&c[M], rows*M, MPI_DOUBLE,     dest, WRITE, MPI_COMM_WORLD);
   }
 }
-void receivefrmworker(double *c) {
+void receivefrmworker(double *c, int M) {
   int rank;
   for (rank=1; rank <= numworkers; rank++) {
     source = rank;
@@ -387,6 +407,41 @@ void receivefrmworker(double *c) {
     MPI_Recv(&rows,               1,             MPI_INT,       source,   WRITE,  MPI_COMM_WORLD, &status);
     MPI_Recv(&left_node,          1,             MPI_INT,       source,   WRITE,  MPI_COMM_WORLD, &status);
     MPI_Recv(&right_node,         1,             MPI_INT,       source,   WRITE,  MPI_COMM_WORLD, &status);
-    MPI_Recv(&c[offset*MESHX],    rows*MESHX,    MPI_DOUBLE,    source,   WRITE,  MPI_COMM_WORLD, &status);
+    MPI_Recv(&c[offset*M],    rows*M,    MPI_DOUBLE,    source,   WRITE,  MPI_COMM_WORLD, &status);
   }
+}
+
+void write2file1( int t, int m, double *c, double *d, char *fname) {
+  int i,j,z;
+  FILE *fp;
+  char filename[1000];
+  sprintf(filename,"./datafiles/%s_%d.dat", fname, t);
+  fp = fopen(filename,"w");
+  for ( i = 0; i < m; i++)
+  {
+    for ( j = 0; j < m; j++)
+    {
+      z= i*m + j;
+      fprintf(fp,"%d %d %le %le\n",j,i,c[z],d[z]);
+    }
+    fprintf(fp,"\n");
+  }
+  fclose(fp);
+}
+void write2file( int t, int m, double *c, char *fname) {
+  int i,j,z;
+  FILE *fp;
+  char filename[1000];
+  sprintf(filename,"./datafiles/%s_%d.dat",fname, t);
+  fp = fopen(filename,"w");
+  for ( i = 0; i < m; i++)
+  {
+    for ( j=0; j < m; j++)
+    {
+      z= i*m + j;
+      fprintf(fp,"%d %d %le\n",j,i,c[z]);
+    }
+    fprintf(fp,"\n");
+  }
+  fclose(fp);
 }
